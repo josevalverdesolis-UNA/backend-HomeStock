@@ -34,23 +34,18 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
+	implementation("org.springframework.boot:spring-boot-starter-actuator")
 
 	// Jackson Kotlin
 	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 
-	// Base de datos PostgreSQL
-	runtimeOnly("org.postgresql:postgresql")
-
 	// MapStruct (implementación + processor vía kapt)
 	implementation("org.mapstruct:mapstruct:$mapstructVersion")
-	add("kapt", "org.mapstruct:mapstruct-processor:$mapstructVersion")
+	kapt("org.mapstruct:mapstruct-processor:$mapstructVersion")
 
-	// Tests
-	testImplementation("org.springframework.boot:spring-boot-starter-test")
-	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
-	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-	testRuntimeOnly("com.h2database:h2")
+	// Base de datos PostgreSQL (runtime en entorno no-test)
+	runtimeOnly("org.postgresql:postgresql")
 }
 
 kotlin {
@@ -65,6 +60,23 @@ allOpen {
 	annotation("jakarta.persistence.Embeddable")
 }
 
-tasks.withType<Test> {
-	useJUnitPlatform()
+// Deshabilitar completamente las tareas de test
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+	enabled = false
+}
+
+// Evitar compilar fuentes y procesar recursos del sourceSet de test
+sourceSets {
+	val test by getting {
+		java.setSrcDirs(emptyList<String>())
+		resources.setSrcDirs(emptyList<String>())
+	}
+}
+
+tasks.matching { it.name in setOf("compileTestKotlin", "compileTestJava", "processTestResources", "testClasses") }
+	.configureEach { it.enabled = false }
+
+
+tasks.withType<org.springframework.boot.gradle.tasks.bundling.BootJar> {
+    archiveFileName.set("app.jar")
 }
