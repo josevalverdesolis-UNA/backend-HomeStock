@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.Test
+
 plugins {
 	kotlin("jvm") version "1.9.25"
 	kotlin("plugin.spring") version "1.9.25"
@@ -47,11 +49,8 @@ dependencies {
 	// Base de datos PostgreSQL (runtime en entorno no-test)
 	runtimeOnly("org.postgresql:postgresql")
 
-
-
-	implementation("org.mapstruct:mapstruct:1.5.5.Final")
-	kapt("org.mapstruct:mapstruct-processor:1.5.5.Final")
-	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+	// Dependencias de pruebas (para resolver anotaciones de Spring en test durante kapt)
+	testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
 
 kotlin {
@@ -67,7 +66,7 @@ allOpen {
 }
 
 // Deshabilitar completamente las tareas de test
-tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+tasks.withType<Test>().configureEach {
     enabled = false
 }
 
@@ -79,8 +78,13 @@ sourceSets {
 	}
 }
 
-tasks.matching { it.name in setOf("compileTestKotlin", "compileTestJava", "processTestResources", "testClasses") }
-	.configureEach { enabled = false }
+tasks.matching {
+    it.name in setOf(
+        "compileTestKotlin", "compileTestJava", "processTestResources", "testClasses",
+        // Deshabilitar KAPT para el source set de test
+        "kaptTestKotlin", "kaptGenerateStubsTestKotlin"
+    )
+}.configureEach { enabled = false }
 
 
 tasks.withType<org.springframework.boot.gradle.tasks.bundling.BootJar> {

@@ -1,40 +1,63 @@
-package cr.una.homestock.data.repository
+package cr.una.homestock.repository
 
 import cr.una.homestock.domain.model.*
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
+import org.springframework.stereotype.Repository
 
-interface UserRepository : JpaRepository<User, String> {
-    fun findByEmail(email: String): User?
-}
+/* =========================
+   CORE
+   ========================= */
 
-interface CategoryRepository : JpaRepository<Category, String> {
-    fun findByName(name: String): Category?
-}
+@Repository
+interface UserRepository : JpaRepository<User, String>
 
+@Repository
+interface CategoryRepository : JpaRepository<Category, String>
+
+@Repository
 interface StoreRepository : JpaRepository<Store, String>
 
+/* =========================
+   PRODUCT + MOVEMENT + SHOPPING
+   ========================= */
+
+@Repository
 interface ProductRepository : JpaRepository<Product, String> {
-    fun findByUserId(userId: String): List<Product>
-    fun existsByUserIdAndId(userId: String, id: String): Boolean
+    fun findAllByUserId(userId: String, pageable: Pageable): Page<Product>
+
+    fun findByUserIdAndCategoryId(
+        userId: String,
+        categoryId: String,
+        pageable: Pageable
+    ): Page<Product>
 }
 
+@Repository
 interface MovementRepository : JpaRepository<Movement, String> {
     fun findByProductIdOrderByOccurredAtDesc(productId: String): List<Movement>
 }
 
+@Repository
 interface ShoppingItemRepository : JpaRepository<ShoppingItem, String> {
-    fun findByUserIdAndIsPurchased(userId: String, isPurchased: Boolean): List<ShoppingItem>
-    fun existsByProductIdAndIsPurchased(productId: String, isPurchased: Boolean): Boolean
+    @Query(
+        "select s from ShoppingItem s " +
+                "where s.product.id = :productId and s.isPurchased = false"
+    )
+    fun findActiveByProductId(@Param("productId") productId: String): ShoppingItem?
 }
 
-interface AlertRepository : JpaRepository<Alert, String> {
-    fun findByUserIdAndIsActive(userId: String, isActive: Boolean): List<Alert>
-}
+/* =========================
+   EXTRAS
+   ========================= */
+@Repository
+interface AlertRepository : JpaRepository<Alert, String>
 
-interface PriceHistoryRepository : JpaRepository<PriceHistory, String> {
-    fun findByProductIdAndStoreIdOrderByRecordedAtDesc(productId: String, storeId: String): List<PriceHistory>
-}
+@Repository
+interface PriceHistoryRepository : JpaRepository<PriceHistory, String>
 
-interface ProductRatingRepository : JpaRepository<ProductRating, String> {
-    fun findByUserIdAndProductId(userId: String, productId: String): ProductRating?
-}
+@Repository
+interface ProductRatingRepository : JpaRepository<ProductRating, String>
