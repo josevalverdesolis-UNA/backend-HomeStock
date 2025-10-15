@@ -1,105 +1,113 @@
-package cr.ac.una.homestock.mapper
+package cr.una.homestock.domain.mapper
 
-import cr.ac.una.homestock.data.*
-import cr.ac.una.homestock.dto.*
+import cr.una.homestock.domain.model.*
+import cr.una.homestock.web.dto.*
 import org.mapstruct.*
 
-/* Reglas globales */
-private val IGNORE_NULL = NullValuePropertyMappingStrategy.IGNORE
-
-@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
+@Mapper(
+    componentModel = "spring",
+    unmappedTargetPolicy = ReportingPolicy.IGNORE,
+    nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE
+)
 interface UserMapper {
-    fun toResult(e: UserEntity): UserResult
-
-    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
-    fun merge(@MappingTarget e: UserEntity, i: UserInput)
+    fun toResult(entity: User): UserResult
+    fun toResults(list: List<User>): List<UserResult>
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", expression = "java(java.time.OffsetDateTime.now())")
+    fun fromInput(input: UserInput): User
+    fun merge(@MappingTarget entity: User, update: UserUpdate)
 }
 
-@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE, nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 interface CategoryMapper {
-    fun toResult(e: CategoryEntity): CategoryResult
-
-    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
-    fun merge(@MappingTarget e: CategoryEntity, i: CategoryInput)
+    fun toResult(entity: Category): CategoryResult
+    fun toResults(list: List<Category>): List<CategoryResult>
+    @Mapping(target = "id", ignore = true)
+    fun fromInput(input: CategoryInput): Category
+    fun merge(@MappingTarget entity: Category, update: CategoryUpdate)
 }
 
-@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE, nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 interface StoreMapper {
-    fun toResult(e: StoreEntity): StoreResult
-
-    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
-    fun merge(@MappingTarget e: StoreEntity, i: StoreInput)
+    fun toResult(entity: Store): StoreResult
+    fun toResults(list: List<Store>): List<StoreResult>
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", expression = "java(java.time.OffsetDateTime.now())")
+    fun fromInput(input: StoreInput): Store
+    fun merge(@MappingTarget entity: Store, update: StoreUpdate)
 }
 
-@Mapper(componentModel = MappingConstants.ComponentModel.SPRING, uses = [CategoryMapper::class])
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE, nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 interface ProductMapper {
-    @Mappings(
-        Mapping(target = "category", source = "category")
-    )
-    fun toResult(e: ProductEntity): ProductResult
+    fun toResult(entity: Product): ProductResult
+    fun toResults(list: List<Product>): List<ProductResult>
 
-    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
-    fun merge(@MappingTarget e: ProductEntity, i: ProductInput)
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", expression = "java(java.time.OffsetDateTime.now())")
+    @Mapping(target = "updatedAt", expression = "java(java.time.OffsetDateTime.now())")
+    fun fromInput(input: ProductInput): Product
+
+    @Mapping(target = "updatedAt", expression = "java(java.time.OffsetDateTime.now())")
+    fun merge(@MappingTarget entity: Product, update: ProductUpdate)
 }
 
-@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE, nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 interface MovementMapper {
-    @Mappings(
-        Mapping(target = "productId", source = "product.id"),
-        Mapping(target = "userId", source = "user.id"),
-        Mapping(target = "storeId", source = "store.id")
-    )
-    fun toResult(e: MovementEntity): MovementResult
+    @Mapping(target = "type", expression = "java(cr.una.homestock.domain.model.MovementType.valueOf(input.getType().name()))")
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "occurredAt", expression = "java(input.getOccurredAt() != null ? input.getOccurredAt() : java.time.OffsetDateTime.now())")
+    fun fromInput(input: MovementInput): Movement
 
-    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
-    fun merge(@MappingTarget e: MovementEntity, i: MovementInput)
+    @Mapping(target = "type", expression = "java(cr.una.homestock.web.dto.MovementTypeDto.valueOf(entity.getType().name()))")
+    fun toResult(entity: Movement): MovementResult
+    fun toResults(list: List<Movement>): List<MovementResult>
 }
 
-@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE, nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 interface ShoppingItemMapper {
-    @Mappings(
-        Mapping(target = "productId", source = "product.id"),
-        Mapping(target = "userId", source = "user.id"),
-        Mapping(target = "targetStoreId", source = "targetStore.id")
-    )
-    fun toResult(e: ShoppingItemEntity): ShoppingItemResult
+    @Mapping(target = "source", expression = "java(cr.una.homestock.domain.model.ShoppingSource.valueOf((input.getSource()!=null?input.getSource():cr.una.homestock.web.dto.ShoppingSourceDto.MANUAL).name()))")
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", expression = "java(java.time.OffsetDateTime.now())")
+    @Mapping(target = "isPurchased", constant = "false")
+    fun fromInput(input: ShoppingItemInput): ShoppingItem
 
-    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
-    fun merge(@MappingTarget e: ShoppingItemEntity, i: ShoppingItemInput)
+    fun toResult(entity: ShoppingItem): ShoppingItemResult
+    fun toResults(list: List<ShoppingItem>): List<ShoppingItemResult>
+    fun merge(@MappingTarget entity: ShoppingItem, update: ShoppingItemUpdate)
 }
 
-@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE, nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 interface AlertMapper {
-    @Mappings(
-        Mapping(target = "productId", source = "product.id"),
-        Mapping(target = "userId", source = "user.id"),
-    )
-    fun toResult(e: AlertEntity): AlertResult
+    @Mapping(target = "type", expression = "java(cr.una.homestock.domain.model.AlertType.valueOf(input.getType().name()))")
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "triggerAt", expression = "java(input.getTriggerAt()!=null?input.getTriggerAt():java.time.OffsetDateTime.now())")
+    @Mapping(target = "isActive", constant = "true")
+    fun fromInput(input: AlertInput): Alert
 
-    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
-    fun merge(@MappingTarget e: AlertEntity, i: AlertInput)
+    @Mapping(target = "type", expression = "java(cr.una.homestock.web.dto.AlertTypeDto.valueOf(entity.getType().name()))")
+    fun toResult(entity: Alert): AlertResult
+    fun toResults(list: List<Alert>): List<AlertResult>
+
+    fun merge(@MappingTarget entity: Alert, update: AlertUpdate)
 }
 
-@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE, nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 interface PriceHistoryMapper {
-    @Mappings(
-        Mapping(target = "productId", source = "product.id"),
-        Mapping(target = "storeId", source = "store.id"),
-    )
-    fun toResult(e: PriceHistoryEntity): PriceHistoryResult
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "recordedAt", expression = "java(input.getRecordedAt()!=null?input.getRecordedAt():java.time.OffsetDateTime.now())")
+    fun fromInput(input: PriceHistoryInput): PriceHistory
 
-    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
-    fun merge(@MappingTarget e: PriceHistoryEntity, i: PriceHistoryInput)
+    fun toResult(entity: PriceHistory): PriceHistoryResult
+    fun toResults(list: List<PriceHistory>): List<PriceHistoryResult>
 }
 
-@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE, nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 interface ProductRatingMapper {
-    @Mappings(
-        Mapping(target = "productId", source = "product.id"),
-        Mapping(target = "userId", source = "user.id")
-    )
-    fun toResult(e: ProductRatingEntity): ProductRatingResult
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", expression = "java(java.time.OffsetDateTime.now())")
+    fun fromInput(input: ProductRatingInput): ProductRating
 
-    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
-    fun merge(@MappingTarget e: ProductRatingEntity, i: ProductRatingInput)
+    fun toResult(entity: ProductRating): ProductRatingResult
+    fun toResults(list: List<ProductRating>): List<ProductRatingResult>
+    fun merge(@MappingTarget entity: ProductRating, update: ProductRatingUpdate)
 }

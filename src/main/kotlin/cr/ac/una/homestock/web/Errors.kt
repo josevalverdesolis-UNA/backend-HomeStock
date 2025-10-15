@@ -1,54 +1,50 @@
-package cr.ac.una.homestock.web
+package cr.una.homestock.web.error
 
-import com.fasterxml.jackson.annotation.JsonFormat
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.validation.FieldError
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ControllerAdvice
 import org.springframework.web.bind.annotation.ExceptionHandler
+import org.springframework.web.context.request.ServletWebRequest
 import java.time.OffsetDateTime
 
-sealed class ApiSubError
-data class ApiValidationError(val field: String, val message: String?) : ApiSubError()
-
 data class ApiError(
-    val status: Int,
-    val code: String,
-    val message: String?,
-    @JsonFormat(shape = JsonFormat.Shape.STRING)
     val timestamp: OffsetDateTime = OffsetDateTime.now(),
-    val errors: List<ApiSubError>? = null,
+    val status: Int,
+    val error: String,
+    val message: String?,
+    val path: String
 )
 
 @ControllerAdvice
 class GlobalExceptionHandler {
 
     @ExceptionHandler(NoSuchElementException::class)
-    fun notFound(ex: NoSuchElementException) =
-        ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-            ApiError(HttpStatus.NOT_FOUND.value(), "ELEMENT_NOT_FOUND", ex.message)
-        )
+    fun handleNotFound(ex: NoSuchElementException, req: ServletWebRequest) =
+        build(HttpStatus.NOT_FOUND, "ELEMENT_NOT_FOUND", ex.message, req)
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
-    fun validation(ex: MethodArgumentNotValidException): ResponseEntity<ApiError> {
-        val details = ex.bindingResult.allErrors.mapNotNull {
-            if (it is FieldError) ApiValidationError(it.field, it.defaultMessage) else null
-        }
-        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(
-            ApiError(HttpStatus.UNPROCESSABLE_ENTITY.value(), "VALIDATION_ERROR", "Validation failed", errors = details)
-        )
+    fun handleValidation(ex: MethodArgumentNotValidException, req: ServletWebRequest): ResponseEntity<ApiError> {
+        val msg = ex.bindingResult.fieldErrors.joinToString { "${it.field}: ${it.defaultMessage}" }
+        return build(HttpStatus.UNPROCESSABLE_ENTITY, "VALIDATION_ERROR", msg, req)
     }
 
+    @ExceptionHandler(DataIntegrityViolationException::class)
+    fun handleIntegrity(ex: DataIntegrityViolationException, req: ServletWebRequest) =
+        build(HttpStatus.CONFLICT, "DATA_INTEGRITY", ex.mostSpecificCause.message, req)
+
     @ExceptionHandler(IllegalArgumentException::class)
-    fun badRequest(ex: IllegalArgumentException) =
-        ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-            ApiError(HttpStatus.BAD_REQUEST.value(), "BAD_REQUEST", ex.message)
-        )
+    fun handleIllegalArg(ex: IllegalArgumentException, req: ServletWebRequest) =
+        build(HttpStatus.BAD_REQUEST, "BUSINESS_RULE", ex.message, req)
 
     @ExceptionHandler(Exception::class)
-    fun generic(ex: Exception) =
-        ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-            ApiError(HttpStatus.INTERNAL_SERVER_ERROR.value(), "INTERNAL_ERROR", ex.message)
-        )
+    fun handleAll(ex: Exception, req: ServletWebRequest) =
+        build(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", ex.message, req)
+
+    private fun build(status: HttpStatus, error: String, msg: String?, req: ServletWebRequest)
+            : ResponseEntity<ApiError> =
+        ResponseEntity
+            .status(status)
+            .body(ApiError(status = status.value(), error = error, message = msg, path = req.request.requestURI))
 }

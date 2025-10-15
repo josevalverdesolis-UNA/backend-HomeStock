@@ -1,4 +1,4 @@
-package cr.ac.una.homestock
+package cr.una.homestock
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication

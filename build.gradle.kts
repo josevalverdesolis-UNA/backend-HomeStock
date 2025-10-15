@@ -46,6 +46,12 @@ dependencies {
 
 	// Base de datos PostgreSQL (runtime en entorno no-test)
 	runtimeOnly("org.postgresql:postgresql")
+
+
+
+	implementation("org.mapstruct:mapstruct:1.5.5.Final")
+	kapt("org.mapstruct:mapstruct-processor:1.5.5.Final")
+	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 }
 
 kotlin {
@@ -62,7 +68,7 @@ allOpen {
 
 // Deshabilitar completamente las tareas de test
 tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
-	enabled = false
+    enabled = false
 }
 
 // Evitar compilar fuentes y procesar recursos del sourceSet de test
@@ -74,7 +80,7 @@ sourceSets {
 }
 
 tasks.matching { it.name in setOf("compileTestKotlin", "compileTestJava", "processTestResources", "testClasses") }
-	.configureEach { it.enabled = false }
+	.configureEach { enabled = false }
 
 
 tasks.withType<org.springframework.boot.gradle.tasks.bundling.BootJar> {

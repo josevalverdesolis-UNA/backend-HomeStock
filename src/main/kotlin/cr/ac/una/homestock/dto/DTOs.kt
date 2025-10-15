@@ -1,43 +1,52 @@
-package cr.ac.una.homestock.dto
+package cr.una.homestock.web.dto
 
-import com.fasterxml.jackson.annotation.JsonInclude
 import jakarta.validation.constraints.*
 import java.math.BigDecimal
-import java.util.*
+import java.time.LocalDate
+import java.time.OffsetDateTime
 
-/* Estilo:
-   - *Input*: campos nullable para soportar partial update (PATCH).
-   - *Result*: sin detalles internos ni perezosos.
-   - Fechas con java.util.Date (simple, sin zona). */
+/* ======= ENUM DTOs ======= */
+enum class MovementTypeDto { PURCHASE, CONSUMPTION, ADJUSTMENT }
+enum class ShoppingSourceDto { AUTO_RULE, MANUAL }
+enum class AlertTypeDto { EXPIRY, LOW_STOCK }
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
+/* ======= BASE ======= */
+data class ApiResponse<T>(val data: T)
+data class IdResponse(val id: String)
+
+/* ======= USER ======= */
 data class UserInput(
-    @field:Size(max = 64) val id: String? = null,
-    @field:Size(max = 120) val name: String? = null,
-    @field:Email @field:Size(max = 160) val email: String? = null,
+    @field:NotBlank val name: String?,
+    @field:Email val email: String?
+)
+data class UserUpdate(
+    val name: String?,
+    @field:Email val email: String?
 )
 data class UserResult(
     val id: String,
     val name: String,
     val email: String,
-    val createdAt: Date,
+    val createdAt: OffsetDateTime
 )
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
-data class CategoryInput(
-    @field:Size(max = 80) val name: String? = null,
-)
-data class CategoryResult(
-    val id: String,
-    val name: String,
-)
+/* ======= CATEGORY ======= */
+data class CategoryInput(@field:NotBlank val name: String?)
+data class CategoryUpdate(val name: String?)
+data class CategoryResult(val id: String, val name: String)
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
+/* ======= STORE ======= */
 data class StoreInput(
-    @field:Size(max = 120) val name: String? = null,
-    @field:Size(max = 200) val address: String? = null,
-    @field:Size(max = 120) val district: String? = null,
-    @field:Size(max = 120) val city: String? = null,
+    @field:NotBlank val name: String?,
+    val address: String?,
+    val district: String?,
+    val city: String?
+)
+data class StoreUpdate(
+    val name: String?,
+    val address: String?,
+    val district: String?,
+    val city: String?
 )
 data class StoreResult(
     val id: String,
@@ -45,76 +54,87 @@ data class StoreResult(
     val address: String?,
     val district: String?,
     val city: String?,
-    val createdAt: Date,
+    val createdAt: OffsetDateTime
 )
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
+/* ======= PRODUCT ======= */
 data class ProductInput(
-    @field:Size(max = 64)  val userId: String? = null,
-    @field:Size(max = 64)  val categoryId: String? = null,
-    @field:Size(max = 120) val name: String? = null,
-    @field:Size(max = 80)  val brand: String? = null,
-    val quantity: Int? = null,
-    val minStock: Int? = null,
-    val acquisitionDate: Date? = null,
-    val expiryDate: Date? = null,
-    @field:PositiveOrZero val price: BigDecimal? = null,
-    @field:Size(max = 64)  val purchaseLocationId: String? = null,
-    @field:Size(max = 512) val imageUrl: String? = null,
+    @field:NotBlank val userId: String?,
+    @field:NotBlank val categoryId: String?,
+    @field:NotBlank val name: String?,
+    val brand: String?,
+    @field:Min(0) val quantity: Int? = 0,
+    @field:Min(0) val minStock: Int? = 0,
+    val acquisitionDate: LocalDate?,
+    val expiryDate: LocalDate?,
+    @field:DecimalMin("0.0") val price: BigDecimal?,
+    val purchaseLocationId: String?,
+    val imageUrl: String?
+)
+data class ProductUpdate(
+    val categoryId: String?,
+    val name: String?,
+    val brand: String?,
+    @field:Min(0) val quantity: Int?,
+    @field:Min(0) val minStock: Int?,
+    val acquisitionDate: LocalDate?,
+    val expiryDate: LocalDate?,
+    @field:DecimalMin("0.0") val price: BigDecimal?,
+    val purchaseLocationId: String?,
+    val imageUrl: String?
 )
 data class ProductResult(
     val id: String,
     val userId: String,
-    val category: CategoryResult,
+    val categoryId: String,
     val name: String,
     val brand: String?,
     val quantity: Int,
     val minStock: Int,
-    val acquisitionDate: Date?,
-    val expiryDate: Date?,
+    val acquisitionDate: LocalDate?,
+    val expiryDate: LocalDate?,
     val price: BigDecimal?,
     val purchaseLocationId: String?,
     val imageUrl: String?,
-    val createdAt: Date,
-    val updatedAt: Date,
+    val createdAt: OffsetDateTime,
+    val updatedAt: OffsetDateTime
 )
 
-enum class MovementType { PURCHASE, CONSUMPTION, ADJUSTMENT }
-
-@JsonInclude(JsonInclude.Include.NON_NULL)
+/* ======= MOVEMENT ======= */
 data class MovementInput(
-    @field:Size(max = 64) val productId: String? = null,
-    @field:Size(max = 64) val userId: String? = null,
-    @field:Size(max = 64) val storeId: String? = null,
-    val type: MovementType? = null,
-    val quantity: Int? = null,
-    @field:PositiveOrZero val unitPrice: BigDecimal? = null,
-    @field:Size(max = 200) val note: String? = null,
-    val occurredAt: Date? = null,
+    @field:NotBlank val productId: String?,
+    @field:NotBlank val userId: String?,
+    val storeId: String?,
+    @field:NotNull val type: MovementTypeDto?,
+    @field:NotNull val quantity: Int?, // >0 compra/ajuste+, <0 consumo/ajuste-
+    @field:DecimalMin("0.0") val unitPrice: BigDecimal? = null,
+    val note: String?,
+    val occurredAt: OffsetDateTime? = null
 )
 data class MovementResult(
     val id: String,
     val productId: String,
     val userId: String,
     val storeId: String?,
-    val type: MovementType,
+    val type: MovementTypeDto,
     val quantity: Int,
     val unitPrice: BigDecimal?,
     val note: String?,
-    val occurredAt: Date,
+    val occurredAt: OffsetDateTime
 )
 
-enum class ShoppingSource { AUTO_RULE, MANUAL }
-
-@JsonInclude(JsonInclude.Include.NON_NULL)
+/* ======= SHOPPING ITEM ======= */
 data class ShoppingItemInput(
-    @field:Size(max = 64) val userId: String? = null,
-    @field:Size(max = 64) val productId: String? = null,
-    val desiredQuantity: Int? = null,
-    val isPurchased: Boolean? = null,
-    @field:Size(max = 64) val targetStoreId: String? = null,
-    val source: ShoppingSource? = null,
-    val purchasedAt: Date? = null,
+    @field:NotBlank val userId: String?,
+    @field:NotBlank val productId: String?,
+    @field:Min(1) val desiredQuantity: Int? = 1,
+    val source: ShoppingSourceDto? = ShoppingSourceDto.MANUAL,
+    val targetStoreId: String?
+)
+data class ShoppingItemUpdate(
+    @field:Min(1) val desiredQuantity: Int?,
+    val isPurchased: Boolean?,
+    val targetStoreId: String?
 )
 data class ShoppingItemResult(
     val id: String,
@@ -122,55 +142,58 @@ data class ShoppingItemResult(
     val productId: String,
     val desiredQuantity: Int,
     val isPurchased: Boolean,
+    val source: ShoppingSourceDto,
     val targetStoreId: String?,
-    val source: ShoppingSource,
-    val createdAt: Date,
-    val purchasedAt: Date?,
+    val createdAt: OffsetDateTime,
+    val purchasedAt: OffsetDateTime?
 )
 
-enum class AlertType { EXPIRY, LOW_STOCK }
-
-@JsonInclude(JsonInclude.Include.NON_NULL)
+/* ======= ALERT ======= */
 data class AlertInput(
-    @field:Size(max = 64) val userId: String? = null,
-    @field:Size(max = 64) val productId: String? = null,
-    val type: AlertType? = null,
-    val triggerAt: Date? = null,
-    val isActive: Boolean? = null,
-    val resolvedAt: Date? = null,
+    @field:NotBlank val userId: String?,
+    @field:NotBlank val productId: String?,
+    @field:NotNull val type: AlertTypeDto?,
+    val triggerAt: OffsetDateTime?
+)
+data class AlertUpdate(
+    val isActive: Boolean?,
+    val resolvedAt: OffsetDateTime?
 )
 data class AlertResult(
     val id: String,
     val userId: String,
     val productId: String,
-    val type: AlertType,
-    val triggerAt: Date,
+    val type: AlertTypeDto,
+    val triggerAt: OffsetDateTime,
     val isActive: Boolean,
-    val resolvedAt: Date?,
+    val resolvedAt: OffsetDateTime?
 )
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
+/* ======= PRICE HISTORY ======= */
 data class PriceHistoryInput(
-    @field:Size(max = 64) val productId: String? = null,
-    @field:Size(max = 64) val storeId: String? = null,
-    @field:PositiveOrZero val unitPrice: BigDecimal? = null,
-    val recordedAt: Date? = null,
+    @field:NotBlank val productId: String?,
+    @field:NotBlank val storeId: String?,
+    @field:DecimalMin("0.0") val unitPrice: BigDecimal?,
+    val recordedAt: OffsetDateTime? = null
 )
 data class PriceHistoryResult(
     val id: String,
     val productId: String,
     val storeId: String,
     val unitPrice: BigDecimal,
-    val recordedAt: Date,
+    val recordedAt: OffsetDateTime
 )
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
+/* ======= PRODUCT RATING ======= */
 data class ProductRatingInput(
-    @field:Size(max = 64) val userId: String? = null,
-    @field:Size(max = 64) val productId: String? = null,
-    @field:Min(1) @field:Max(5) val qualityScore: Int? = null,
-    @field:Size(max = 300) val notes: String? = null,
-    val createdAt: Date? = null,
+    @field:NotBlank val userId: String?,
+    @field:NotBlank val productId: String?,
+    @field:Min(1) @field:Max(5) val qualityScore: Int?,
+    val notes: String?
+)
+data class ProductRatingUpdate(
+    @field:Min(1) @field:Max(5) val qualityScore: Int?,
+    val notes: String?
 )
 data class ProductRatingResult(
     val id: String,
@@ -178,5 +201,5 @@ data class ProductRatingResult(
     val productId: String,
     val qualityScore: Int,
     val notes: String?,
-    val createdAt: Date,
+    val createdAt: OffsetDateTime
 )
