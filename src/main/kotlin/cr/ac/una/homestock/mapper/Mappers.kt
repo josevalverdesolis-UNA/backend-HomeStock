@@ -1,235 +1,105 @@
 package cr.ac.una.homestock.mapper
 
-import cr.ac.una.homestock.dto.*
 import cr.ac.una.homestock.data.*
-import cr.ac.una.homestock.domain.model.*
+import cr.ac.una.homestock.dto.*
 import org.mapstruct.*
-import java.util.*
 
-/* ============================================================================
- * Configuración base
- * ============================================================================
- */
-@MapperConfig(
-    componentModel = "spring",
-    unmappedTargetPolicy = ReportingPolicy.IGNORE
-)
-interface BaseMapperConfig
+/* Reglas globales */
+private val IGNORE_NULL = NullValuePropertyMappingStrategy.IGNORE
 
-/* ============================================================================
- * USER
- * ============================================================================
- */
-@Mapper(config = BaseMapperConfig::class)
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 interface UserMapper {
-    fun toDomain(entity: UserEntity): User
-    fun toEntity(domain: User): UserEntity
-    fun toDto(domain: User): UserDto
-    fun toDomain(dto: UserDto): User
+    fun toResult(e: UserEntity): UserResult
+
+    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
+    fun merge(@MappingTarget e: UserEntity, i: UserInput)
 }
 
-/* ============================================================================
- * CATEGORY
- * ============================================================================
- */
-@Mapper(config = BaseMapperConfig::class)
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 interface CategoryMapper {
-    fun toDomain(entity: CategoryEntity): Category
-    fun toEntity(domain: Category): CategoryEntity
-    fun toDto(domain: Category): CategoryDto
-    fun toDomain(dto: CategoryDto): Category
+    fun toResult(e: CategoryEntity): CategoryResult
+
+    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
+    fun merge(@MappingTarget e: CategoryEntity, i: CategoryInput)
 }
 
-/* ============================================================================
- * STORE
- * ============================================================================
- */
-@Mapper(config = BaseMapperConfig::class)
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 interface StoreMapper {
-    fun toDomain(entity: StoreEntity): Store
-    fun toEntity(domain: Store): StoreEntity
-    fun toDto(domain: Store): StoreDto
-    fun toDomain(dto: StoreDto): Store
+    fun toResult(e: StoreEntity): StoreResult
+
+    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
+    fun merge(@MappingTarget e: StoreEntity, i: StoreInput)
 }
 
-/* ============================================================================
- * PRODUCT
- * ============================================================================
- */
-@Mapper(config = BaseMapperConfig::class)
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING, uses = [CategoryMapper::class])
 interface ProductMapper {
-    /* ---- Entity ↔ Domain ---- */
     @Mappings(
-        Mapping(target = "userId", source = "entity.user.id"),
-        Mapping(target = "categoryId", source = "entity.category.id"),
-        Mapping(target = "purchaseLocationId", source = "entity.purchaseLocation.id")
+        Mapping(target = "category", source = "category")
     )
-    fun toDomain(entity: ProductEntity): Product
+    fun toResult(e: ProductEntity): ProductResult
 
-    @InheritInverseConfiguration
-    @Mappings(
-        Mapping(target = "user", expression = "java(toUserEntity(domain.getUserId()))"),
-        Mapping(target = "category", expression = "java(toCategoryEntity(domain.getCategoryId()))"),
-        Mapping(target = "purchaseLocation", expression = "java(toStoreEntity(domain.getPurchaseLocationId()))")
-    )
-    fun toEntity(domain: Product): ProductEntity
-
-    /* ---- Domain ↔ DTO ---- */
-    fun toDto(domain: Product): ProductDto
-    fun toDomain(dto: ProductDto): Product
-
-    fun toDtoList(domains: List<Product>): List<ProductDto>
-
-    /* ---- Helper (IDs → Entities vacíos) ---- */
-    fun toUserEntity(id: String?): UserEntity? = id?.let { UserEntity(id = it, name = "", email = "") }
-    fun toCategoryEntity(id: UUID?): CategoryEntity? = id?.let { CategoryEntity(id = it, name = "") }
-    fun toStoreEntity(id: UUID?): StoreEntity? = id?.let { StoreEntity(id = it, name = "") }
+    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
+    fun merge(@MappingTarget e: ProductEntity, i: ProductInput)
 }
 
-/* ============================================================================
- * MOVEMENT
- * ============================================================================
- */
-@Mapper(config = BaseMapperConfig::class)
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 interface MovementMapper {
     @Mappings(
-        Mapping(target = "productId", source = "entity.product.id"),
-        Mapping(target = "userId", source = "entity.user.id"),
-        Mapping(target = "storeId", source = "entity.store.id")
+        Mapping(target = "productId", source = "product.id"),
+        Mapping(target = "userId", source = "user.id"),
+        Mapping(target = "storeId", source = "store.id")
     )
-    fun toDomain(entity: MovementEntity): Movement
+    fun toResult(e: MovementEntity): MovementResult
 
-    @InheritInverseConfiguration
-    @Mappings(
-        Mapping(target = "product", expression = "java(toProductEntity(domain.getProductId()))"),
-        Mapping(target = "user", expression = "java(toUserEntity(domain.getUserId()))"),
-        Mapping(target = "store", expression = "java(toStoreEntity(domain.getStoreId()))")
-    )
-    fun toEntity(domain: Movement): MovementEntity
-
-    fun toDto(domain: Movement): MovementDto
-    fun toDomain(dto: MovementDto): Movement
-
-    /* Helpers */
-    fun toProductEntity(id: UUID?): ProductEntity? = id?.let {
-        ProductEntity(id = it, user = UserEntity("","", ""), category = CategoryEntity(name = ""), name = "")
-    }
-    fun toUserEntity(id: String?): UserEntity? = id?.let { UserEntity(id = it, name = "", email = "") }
-    fun toStoreEntity(id: UUID?): StoreEntity? = id?.let { StoreEntity(id = it, name = "") }
+    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
+    fun merge(@MappingTarget e: MovementEntity, i: MovementInput)
 }
 
-/* ============================================================================
- * SHOPPING ITEM
- * ============================================================================
- */
-@Mapper(config = BaseMapperConfig::class)
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 interface ShoppingItemMapper {
     @Mappings(
-        Mapping(target = "userId", source = "entity.user.id"),
-        Mapping(target = "productId", source = "entity.product.id"),
-        Mapping(target = "targetStoreId", source = "entity.targetStore.id")
+        Mapping(target = "productId", source = "product.id"),
+        Mapping(target = "userId", source = "user.id"),
+        Mapping(target = "targetStoreId", source = "targetStore.id")
     )
-    fun toDomain(entity: ShoppingItemEntity): ShoppingItem
+    fun toResult(e: ShoppingItemEntity): ShoppingItemResult
 
-    @InheritInverseConfiguration
-    @Mappings(
-        Mapping(target = "user", expression = "java(toUserEntity(domain.getUserId()))"),
-        Mapping(target = "product", expression = "java(toProductEntity(domain.getProductId()))"),
-        Mapping(target = "targetStore", expression = "java(toStoreEntity(domain.getTargetStoreId()))")
-    )
-    fun toEntity(domain: ShoppingItem): ShoppingItemEntity
-
-    fun toDto(domain: ShoppingItem): ShoppingItemDto
-    fun toDomain(dto: ShoppingItemDto): ShoppingItem
-
-    /* Helpers */
-    fun toUserEntity(id: String?): UserEntity? = id?.let { UserEntity(id = it, name = "", email = "") }
-    fun toProductEntity(id: UUID?): ProductEntity? = id?.let {
-        ProductEntity(id = it, user = UserEntity("","", ""), category = CategoryEntity(name = ""), name = "")
-    }
-    fun toStoreEntity(id: UUID?): StoreEntity? = id?.let { StoreEntity(id = it, name = "") }
+    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
+    fun merge(@MappingTarget e: ShoppingItemEntity, i: ShoppingItemInput)
 }
 
-/* ============================================================================
- * ALERT
- * ============================================================================
- */
-@Mapper(config = BaseMapperConfig::class)
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 interface AlertMapper {
     @Mappings(
-        Mapping(target = "userId", source = "entity.user.id"),
-        Mapping(target = "productId", source = "entity.product.id")
+        Mapping(target = "productId", source = "product.id"),
+        Mapping(target = "userId", source = "user.id"),
     )
-    fun toDomain(entity: AlertEntity): Alert
+    fun toResult(e: AlertEntity): AlertResult
 
-    @InheritInverseConfiguration
-    @Mappings(
-        Mapping(target = "user", expression = "java(toUserEntity(domain.getUserId()))"),
-        Mapping(target = "product", expression = "java(toProductEntity(domain.getProductId()))")
-    )
-    fun toEntity(domain: Alert): AlertEntity
-
-    fun toDto(domain: Alert): AlertDto
-    fun toDomain(dto: AlertDto): Alert
-
-    fun toUserEntity(id: String?): UserEntity? = id?.let { UserEntity(id = it, name = "", email = "") }
-    fun toProductEntity(id: UUID?): ProductEntity? = id?.let {
-        ProductEntity(id = it, user = UserEntity("","", ""), category = CategoryEntity(name = ""), name = "")
-    }
+    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
+    fun merge(@MappingTarget e: AlertEntity, i: AlertInput)
 }
 
-/* ============================================================================
- * PRICE HISTORY
- * ============================================================================
- */
-@Mapper(config = BaseMapperConfig::class)
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 interface PriceHistoryMapper {
     @Mappings(
-        Mapping(target = "productId", source = "entity.product.id"),
-        Mapping(target = "storeId", source = "entity.store.id")
+        Mapping(target = "productId", source = "product.id"),
+        Mapping(target = "storeId", source = "store.id"),
     )
-    fun toDomain(entity: PriceHistoryEntity): PriceHistory
+    fun toResult(e: PriceHistoryEntity): PriceHistoryResult
 
-    @InheritInverseConfiguration
-    @Mappings(
-        Mapping(target = "product", expression = "java(toProductEntity(domain.getProductId()))"),
-        Mapping(target = "store", expression = "java(toStoreEntity(domain.getStoreId()))")
-    )
-    fun toEntity(domain: PriceHistory): PriceHistoryEntity
-
-    fun toDto(domain: PriceHistory): PriceHistoryDto
-    fun toDomain(dto: PriceHistoryDto): PriceHistory
-
-    fun toProductEntity(id: UUID?): ProductEntity? = id?.let {
-        ProductEntity(id = it, user = UserEntity("","", ""), category = CategoryEntity(name = ""), name = "")
-    }
-    fun toStoreEntity(id: UUID?): StoreEntity? = id?.let { StoreEntity(id = it, name = "") }
+    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
+    fun merge(@MappingTarget e: PriceHistoryEntity, i: PriceHistoryInput)
 }
 
-/* ============================================================================
- * PRODUCT RATING
- * ============================================================================
- */
-@Mapper(config = BaseMapperConfig::class)
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 interface ProductRatingMapper {
     @Mappings(
-        Mapping(target = "userId", source = "entity.user.id"),
-        Mapping(target = "productId", source = "entity.product.id")
+        Mapping(target = "productId", source = "product.id"),
+        Mapping(target = "userId", source = "user.id")
     )
-    fun toDomain(entity: ProductRatingEntity): ProductRating
+    fun toResult(e: ProductRatingEntity): ProductRatingResult
 
-    @InheritInverseConfiguration
-    @Mappings(
-        Mapping(target = "user", expression = "java(toUserEntity(domain.getUserId()))"),
-        Mapping(target = "product", expression = "java(toProductEntity(domain.getProductId()))")
-    )
-    fun toEntity(domain: ProductRating): ProductRatingEntity
-
-    fun toDto(domain: ProductRating): ProductRatingDto
-    fun toDomain(dto: ProductRatingDto): ProductRating
-
-    fun toUserEntity(id: String?): UserEntity? = id?.let { UserEntity(id = it, name = "", email = "") }
-    fun toProductEntity(id: UUID?): ProductEntity? = id?.let {
-        ProductEntity(id = it, user = UserEntity("","", ""), category = CategoryEntity(name = ""), name = "")
-    }
+    @BeanMapping(nullValuePropertyMappingStrategy = IGNORE_NULL)
+    fun merge(@MappingTarget e: ProductRatingEntity, i: ProductRatingInput)
 }
