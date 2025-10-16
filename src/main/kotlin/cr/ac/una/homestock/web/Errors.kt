@@ -1,4 +1,4 @@
-package cr.una.homestock.web.error
+package cr.ac.una.homestock.web.error
 
 import jakarta.validation.ConstraintViolationException
 import org.springframework.http.HttpStatus

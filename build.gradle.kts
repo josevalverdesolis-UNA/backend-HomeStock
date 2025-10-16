@@ -51,6 +51,8 @@ dependencies {
 
 	// Dependencias de pruebas (para resolver anotaciones de Spring en test durante kapt)
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
+	implementation("org.flywaydb:flyway-core")
 }
 
 kotlin {

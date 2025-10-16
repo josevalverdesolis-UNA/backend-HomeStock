@@ -31,7 +31,7 @@ crear base de datos
 - Base: `homestockapp`
 - Owner: `homestockapp`
 
-La app usa por defecto `jdbc:postgresql://localhost:5432/homestockapp` con `homestockapp / 12345` (ver `src/main/resources/application.yml`).
+La app usa por defecto `jdbc:postgresql://localhost:5432/homestockapp` con `homestockapp / 12345` (ver `src/main/resources/application.properties`).
 
 ## Ejecución
 - Compilar y ejecutar tests: `gradlew clean build`
@@ -42,10 +42,7 @@ La app usa por defecto `jdbc:postgresql://localhost:5432/homestockapp` con `home
 Si el puerto 8080 está ocupado, libéralo y vuelve a iniciar.
 
 ## Perfiles
-- `main`/default: usa PostgreSQL (config `application.yml`).
+- `main`/default: usa PostgreSQL (config `application.properties`).
 - `test`
 
 ## Despliegue en Render en proceso
-
-
-
