@@ -6,13 +6,10 @@ services:
     plan: free
     autoDeploy: true
 
-    # Docker build
-    # Si este archivo está en el root de un monorepo, usa:
-    #   dockerfilePath: backend-HomeStock/Dockerfile
-    #   dockerContext: backend-HomeStock
-    # Si este archivo vive dentro de backend-HomeStock/ (este caso), usa:
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
+    # Docker build (proyecto en la raíz del repo)
+    # Si configuras el servicio vía UI, usa Root Directory vacío
+    dockerfilePath: backend-HomeStock/Dockerfile
+    dockerContext: backend-HomeStock
 
     # Health check fiable usando SpringDoc
     healthCheckPath: /v1/api-docs
