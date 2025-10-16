@@ -45,16 +45,7 @@ Si el puerto 8080 está ocupado, libéralo y vuelve a iniciar.
 - `main`/default: usa PostgreSQL (config `application.yml`).
 - `test`
 
-## Despliegue en Render
+## Despliegue en Render en proceso
 
-1) Crear servicio Web en Render (Java) y conectar tu repo.
-
-2) Configurar Build & Start Commands:
-- Build Command: `./gradlew clean bootJar -x test`
-- Start Command: `java -Dserver.port=$PORT -jar build/libs/app.jar`
-
-3) Health Check
-- Path: `/actuator/health`
-- Timeout: 180s (sugerido para arranques fríos)
 
 
