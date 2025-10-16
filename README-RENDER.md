@@ -35,7 +35,7 @@ Puedes usar Blueprint (render.yaml) o configurarlo vía UI.
 ### Opción A: Blueprint (render.yaml en la RAÍZ del repo)
 - `dockerfilePath: ./Dockerfile`
 - `dockerContext: .`
-- `healthCheckPath: /v1/api-docs`
+- `healthCheckPath: /actuator/health`
 
 ### Opción B: Configurar vía UI (sin Blueprint)
 - New → Web Service → Build & Deploy from a Git repository.
@@ -46,6 +46,7 @@ Puedes usar Blueprint (render.yaml) o configurarlo vía UI.
 - Region: `Virginia`
 - Plan: `Free` o superior
 - Variables de entorno: agrega las de la sección 2
+- Health Check Path: `/actuator/health`
 
 Nota: Solo si mueves el proyecto a un subdirectorio (monorepo), entonces usarías:
 - Root Directory: `backend-HomeStock`
@@ -80,10 +81,34 @@ docker run -p 8080:8080 ^
 - SSL: asegura `?sslmode=require` en la URL JDBC.
 - Migraciones Flyway: deshabilitadas por defecto; activa con `SPRING_FLYWAY_ENABLED=true` si quieres aplicar scripts en `classpath:bd/migration`.
 - Puerto: Render inyecta `PORT`. La imagen lo respeta y por defecto usa `8080` localmente.
-- Health check: `/v1/api-docs` (o `/actuator/health` si usas Actuator).
+- Health check: `/actuator/health` (alternativamente `/v1/api-docs` si no quieres Actuator expuesto).
 
 ## 6) Referencia rápida de archivos
 - `Dockerfile` (raíz): multi-stage Temurin 17, ejecuta `app.jar` y respeta `PORT`.
 - `render.yaml` (raíz): servicio Docker en Virginia con paths relativos.
 - `src/main/resources/application.properties`: usa `SPRING_DATASOURCE_*` y `PORT`.
 - `.dockerignore` (raíz): acelera builds evitando incluir caches/artefactos.
+
+## 7) Migraciones (Flyway)
+- Configuración:
+  - `spring.flyway.enabled=true`
+  - `spring.flyway.locations=classpath:bd/migration`
+  - `spring.jpa.hibernate.ddl-auto=validate`
+- Estructura de migraciones: `src/main/resources/bd/migration/`
+  - `V1__init.sql` → esquema base (tablas y claves mínimas)
+  - `V2__constraints_indexes.sql` → constraints extra e índices
+  - `V3__sample_data.sql` → datos de ejemplo (idempotentes)
+
+Ejecutar localmente (Windows CMD):
+```cmd
+set SPRING_DATASOURCE_URL=jdbc:postgresql://HOST:5432/DBNAME?sslmode=require
+set SPRING_DATASOURCE_USERNAME=USERNAME
+set SPRING_DATASOURCE_PASSWORD=PASSWORD
+
+gradlew.bat flywayClean flywayMigrate
+```
+
+- En Render: Flyway corre automáticamente al arrancar la app (usa las variables de entorno del servicio).
+- Verificación:
+  - HTTP: `GET /actuator/health` → debe responder `{"status":"UP"}`.
+  - SQL (psql): `\dt` para listar tablas; debe mostrar `users`, `categories`, `stores`, `products`, `movements`, `shopping_items`, `alerts`, `price_history`, `product_ratings`.

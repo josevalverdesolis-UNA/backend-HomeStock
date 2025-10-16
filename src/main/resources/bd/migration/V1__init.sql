@@ -1,125 +1,123 @@
--- =========================================================================
---  HomeStock – Esquema base (alineado con Entities.kt)
--- =========================================================================
+-- V1: Esquema base (tablas + PKs + FKs mínimas)
+-- Idempotente: CREATE TABLE IF NOT EXISTS y defaults seguros
+
+SET search_path TO public;
 
 -- Usuarios
 CREATE TABLE IF NOT EXISTS users (
-    id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(120) NOT NULL,
-    email VARCHAR(160) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Categorías (globales)
+-- Categorías
 CREATE TABLE IF NOT EXISTS categories (
-    id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(120) NOT NULL,
-    description TEXT,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Tiendas (globales)
+-- Tiendas
 CREATE TABLE IF NOT EXISTS stores (
-    id BIGSERIAL PRIMARY KEY,
-    name VARCHAR(160) NOT NULL,
-    location VARCHAR(220),
-    notes TEXT,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL
+  id BIGSERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  location TEXT NULL,
+  notes TEXT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Productos
+-- Productos (FK mínimas: user_id, category_id)
 CREATE TABLE IF NOT EXISTS products (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    category_id BIGINT NOT NULL,
-    name VARCHAR(160) NOT NULL,
-    quantity INTEGER NOT NULL DEFAULT 0,
-    min_stock INTEGER NOT NULL DEFAULT 0,
-    expiry_date DATE,
-    price NUMERIC(19,4),
-    purchase_location_id BIGINT,
-    brand VARCHAR(120),
-    image_url VARCHAR(300),
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    CONSTRAINT fk_product_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_product_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT,
-    CONSTRAINT fk_product_store FOREIGN KEY (purchase_location_id) REFERENCES stores(id) ON DELETE SET NULL
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  name TEXT NOT NULL,
+  category_id BIGINT NOT NULL,
+  quantity INT NOT NULL,
+  min_stock INT NOT NULL,
+  expiry_date DATE NULL,
+  price NUMERIC(19,4) NULL,
+  purchase_location_id BIGINT NULL,
+  brand TEXT NULL,
+  image_url TEXT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT fk_product_user FOREIGN KEY (user_id) REFERENCES users(id),
+  CONSTRAINT fk_product_category FOREIGN KEY (category_id) REFERENCES categories(id)
 );
 
--- Movimientos de inventario
+-- Movimientos (FK mínimas: user_id, product_id)
 CREATE TABLE IF NOT EXISTS movements (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    product_id BIGINT NOT NULL,
-    type VARCHAR(24) NOT NULL,
-    quantity INTEGER NOT NULL,
-    unit_price NUMERIC(19,4),
-    store_id BIGINT,
-    note VARCHAR(300),
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    CONSTRAINT fk_movement_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-    CONSTRAINT fk_movement_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_movement_store FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE SET NULL
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  product_id BIGINT NOT NULL,
+  type VARCHAR(20) NOT NULL,
+  quantity INT NOT NULL,
+  unit_price NUMERIC(19,4) NULL,
+  store_id BIGINT NULL,
+  note TEXT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT fk_movement_user FOREIGN KEY (user_id) REFERENCES users(id),
+  CONSTRAINT fk_movement_product FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
--- Lista de compras
+-- Lista de compras (FK mínimas: user_id, product_id)
 CREATE TABLE IF NOT EXISTS shopping_items (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    product_id BIGINT NOT NULL,
-    quantity INTEGER NOT NULL,
-    is_purchased BOOLEAN NOT NULL DEFAULT FALSE,
-    purchased_at TIMESTAMPTZ,
-    source VARCHAR(24) NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    CONSTRAINT fk_shopping_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_shopping_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  product_id BIGINT NOT NULL,
+  quantity INT NOT NULL DEFAULT 1,
+  is_purchased BOOLEAN NOT NULL DEFAULT FALSE,
+  purchased_at TIMESTAMPTZ NULL,
+  source VARCHAR(20) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT fk_shopping_user FOREIGN KEY (user_id) REFERENCES users(id),
+  CONSTRAINT fk_shopping_product FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
--- Alertas
+-- Alertas (FK mínima: user_id)
 CREATE TABLE IF NOT EXISTS alerts (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    product_id BIGINT,
-    type VARCHAR(24) NOT NULL,
-    message VARCHAR(300),
-    trigger_at TIMESTAMPTZ NOT NULL,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    resolved_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    CONSTRAINT fk_alert_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_alert_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  product_id BIGINT NULL,
+  type VARCHAR(20) NOT NULL,
+  message TEXT NULL,
+  trigger_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  resolved_at TIMESTAMPTZ NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT fk_alert_user FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
--- Histórico de precios
+-- Historial de precios (FK mínima: product_id)
 CREATE TABLE IF NOT EXISTS price_history (
-    id BIGSERIAL PRIMARY KEY,
-    product_id BIGINT NOT NULL,
-    store_id BIGINT,
-    unit_price NUMERIC(19,4) NOT NULL,
-    recorded_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    CONSTRAINT fk_ph_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-    CONSTRAINT fk_ph_store FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE SET NULL
+  id BIGSERIAL PRIMARY KEY,
+  product_id BIGINT NOT NULL,
+  unit_price NUMERIC(19,4) NOT NULL,
+  store_id BIGINT NULL,
+  recorded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT fk_ph_product FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
--- Valoraciones de producto
+-- Valoraciones (FK mínimas: user_id, product_id)
 CREATE TABLE IF NOT EXISTS product_ratings (
-    id BIGSERIAL PRIMARY KEY,
-    user_id BIGINT NOT NULL,
-    product_id BIGINT NOT NULL,
-    quality_score INTEGER NOT NULL,
-    notes VARCHAR(400),
-    created_at TIMESTAMPTZ NOT NULL,
-    updated_at TIMESTAMPTZ NOT NULL,
-    CONSTRAINT fk_rating_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    CONSTRAINT fk_rating_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  product_id BIGINT NOT NULL,
+  quality_score INT NOT NULL,
+  notes TEXT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT fk_rating_user FOREIGN KEY (user_id) REFERENCES users(id),
+  CONSTRAINT fk_rating_product FOREIGN KEY (product_id) REFERENCES products(id)
 );
+

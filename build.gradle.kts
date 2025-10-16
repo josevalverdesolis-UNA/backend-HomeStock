@@ -7,6 +7,7 @@ plugins {
 	id("org.springframework.boot") version "3.2.5"
 	id("io.spring.dependency-management") version "1.1.7"
 	kotlin("kapt") version "1.9.25"
+	id("org.flywaydb.flyway") version "10.17.0"
 }
 
 group = "cr.ac.una.homestock"
@@ -22,6 +23,7 @@ java {
 repositories { mavenCentral() }
 
 val mapstructVersion = "1.5.5.Final"
+val flywayVersion = "10.17.0"
 
 dependencies {
 	// Spring Boot
@@ -41,7 +43,8 @@ dependencies {
 	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0")
 
 	// Migraciones + Driver
-	implementation("org.flywaydb:flyway-core")
+	implementation("org.flywaydb:flyway-core:$flywayVersion")
+	implementation("org.flywaydb:flyway-database-postgresql:$flywayVersion")
 	runtimeOnly("org.postgresql:postgresql")
 
 	// Tests
@@ -64,4 +67,12 @@ tasks.withType<Test> { useJUnitPlatform() }
 // Empaquetado JAR ejecutable para Render
 tasks.withType<org.springframework.boot.gradle.tasks.bundling.BootJar> {
 	archiveFileName.set("app.jar")
+}
+
+flyway {
+	url = System.getenv("SPRING_DATASOURCE_URL")
+	user = System.getenv("SPRING_DATASOURCE_USERNAME")
+	password = System.getenv("SPRING_DATASOURCE_PASSWORD")
+	locations = arrayOf("filesystem:src/main/resources/bd/migration")
+	cleanDisabled = false
 }
