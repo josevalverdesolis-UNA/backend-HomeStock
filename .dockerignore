@@ -1,0 +1,29 @@
+# Ignora artefactos de build y caches locales
+.buildpath
+.classpath
+.project
+.settings/
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+
+# VCS
+.git/
+.gitignore
+
+# Logs y temp
+*.log
+*.tmp
+.tmp/
+
+# Otros
+out/
+local.properties
+

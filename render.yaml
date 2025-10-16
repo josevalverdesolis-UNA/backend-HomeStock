@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: homestock-backend
+    env: docker
+    region: virginia
+    plan: free
+    autoDeploy: true
+
+    # Docker build
+    # Si este archivo está en el root de un monorepo, usa:
+    #   dockerfilePath: backend-HomeStock/Dockerfile
+    #   dockerContext: backend-HomeStock
+    # Si este archivo vive dentro de backend-HomeStock/ (este caso), usa:
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+
+    # Health check fiable usando SpringDoc
+    healthCheckPath: /v1/api-docs
+
+    envVars:
+      # Usa la URL JDBC completa: jdbc:postgresql://HOST:PORT/DB?sslmode=require
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      # Perfil recomendado para producción
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
