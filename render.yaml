@@ -7,9 +7,9 @@ services:
     autoDeploy: true
 
     # Docker build (proyecto en la raíz del repo)
-    # Si configuras el servicio vía UI, usa Root Directory vacío
-    dockerfilePath: backend-HomeStock/Dockerfile
-    dockerContext: backend-HomeStock
+    # En Render UI, usa Root Directory vacío
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
 
     # Health check fiable usando SpringDoc
     healthCheckPath: /v1/api-docs

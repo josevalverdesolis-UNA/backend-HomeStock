@@ -4,71 +4,63 @@ Esta guía te lleva paso a paso para desplegar el backend (Spring Boot + Kotlin,
 
 ## Requisitos
 - Cuenta en Render (https://render.com)
-- Este repositorio en GitHub (o GitLab/Bitbucket) con los archivos: `backend-HomeStock/Dockerfile`, `backend-HomeStock/render.yaml` o un Blueprint en el root.
+- Este repositorio en GitHub con `Dockerfile` y `render.yaml` en la RAÍZ del repo.
 - Base de datos PostgreSQL en Render (se crea en los pasos de abajo).
 
 ## 1) Crear la base de datos PostgreSQL en Render
 1. En el dashboard de Render: New → PostgreSQL.
 2. Nombre: `homestock-db` (o el que prefieras).
-3. Región: Virginia (para baja latencia con el servicio web que también estará en Virginia).
+3. Región: Virginia (para baja latencia con el servicio web).
 4. Plan: Free (o superior si necesitas más recursos).
-5. Crea la base y espera a que el estado sea `Available` y veas las credenciales.
+5. Espera a que el estado sea `Available` y copia las credenciales.
 
-Render te mostrará varias URLs de conexión. Toma nota de:
-- Internal Database URL (recomendado cuando el servicio web también está en Render)
-- External Database URL (útil para conectarte desde tu laptop u otra red)
-
-Ambas suelen tener el formato:
-```
-postgres://USERNAME:PASSWORD@HOST:PORT/DBNAME
-```
-
-Para Spring Boot necesitas la versión JDBC (cambia el esquema `postgres://` por `jdbc:postgresql://` y agrega `?sslmode=require`):
+Render te mostrará varias URLs de conexión. Toma nota de la URL JDBC (reemplaza `postgres://` por `jdbc:postgresql://` y agrega `?sslmode=require`):
 ```
 jdbc:postgresql://HOST:PORT/DBNAME?sslmode=require
 ```
 
 ## 2) Variables de entorno necesarias
-En el servicio web configura estas variables (Render → Service → Environment):
+Configura en tu servicio web (Render → Service → Environment):
 - `SPRING_DATASOURCE_URL=jdbc:postgresql://<HOST>:5432/<DB>?sslmode=require`
 - `SPRING_DATASOURCE_USERNAME=usuario_render`
 - `SPRING_DATASOURCE_PASSWORD=contraseña_render`
 - Opcional: `SPRING_PROFILES_ACTIVE=prod`
 - Opcional: `SPRING_FLYWAY_ENABLED=true` (si quieres ejecutar migraciones)
 
-El archivo `application.properties` ya está preparado para leer estas variables y usar el puerto `PORT` que Render inyecta.
+El `application.properties` ya lee estas variables y usa `server.port=${PORT:8080}`.
 
 ## 3) Despliegue en Render usando Docker
-Tienes dos rutas posibles: Blueprint (render.yaml) o vía UI.
+Puedes usar Blueprint (render.yaml) o configurarlo vía UI.
 
-### Opción A: Blueprint (render.yaml)
-- Si tu `render.yaml` está en el root del repo (monorepo), usa:
-  - `dockerfilePath: backend-HomeStock/Dockerfile`
-  - `dockerContext: backend-HomeStock`
-- Si el `render.yaml` está dentro de `backend-HomeStock/`, puedes dejar `dockerfilePath: ./Dockerfile` y `dockerContext: .`.
-
-
-El Blueprint ya define `healthCheckPath: /v1/api-docs` (SpringDoc). Si agregas Actuator, puedes cambiarlo a `/actuator/health`.
+### Opción A: Blueprint (render.yaml en la RAÍZ del repo)
+- `dockerfilePath: ./Dockerfile`
+- `dockerContext: .`
+- `healthCheckPath: /v1/api-docs`
 
 ### Opción B: Configurar vía UI (sin Blueprint)
 - New → Web Service → Build & Deploy from a Git repository.
-- Root Directory: `backend-HomeStock`
+- Root Directory: DEJAR VACÍO (proyecto en la raíz)
 - Runtime: Docker
-- Dockerfile Path: `backend-HomeStock/Dockerfile`
-- Docker Build Context Directory: `backend-HomeStock`
+- Dockerfile Path: `./Dockerfile`
+- Docker Build Context Directory: `.`
 - Region: `Virginia`
 - Plan: `Free` o superior
 - Variables de entorno: agrega las de la sección 2
 
-## 4) Probar localmente (Windows CMD)
-Compila y ejecuta usando el mismo contexto y Dockerfile que en Render:
+Nota: Solo si mueves el proyecto a un subdirectorio (monorepo), entonces usarías:
+- Root Directory: `backend-HomeStock`
+- Dockerfile Path: `backend-HomeStock/Dockerfile`
+- Docker Build Context Directory: `backend-HomeStock`
 
-1) Construir imagen (desde el root del repo):
+## 4) Probar localmente (Windows CMD)
+Compila y ejecuta desde la raíz del repo:
+
+1) Construir imagen:
 ```cmd
-docker build -f backend-HomeStock/Dockerfile -t homestock-backend:local backend-HomeStock
+docker build -f ./Dockerfile -t homestock-backend:local .
 ```
 
-2) Ejecutar el contenedor (usa tu DB de Render o local con SSL si aplica):
+2) Ejecutar contenedor:
 ```cmd
 set SPRING_DATASOURCE_URL=jdbc:postgresql://HOST:5432/DBNAME?sslmode=require
 set SPRING_DATASOURCE_USERNAME=USERNAME
@@ -81,17 +73,17 @@ docker run -p 8080:8080 ^
   homestock-backend:local
 ```
 
-3) Abre http://localhost:8080. Con SpringDoc, la UI está en `/swagger-ui` y los docs en `/v1/api-docs`.
+3) Abre http://localhost:8080 → Docs: `/v1/api-docs`, UI: `/swagger-ui`.
 
 ## 5) Solución de problemas
-- Conexión rechazada/SSL: asegura `?sslmode=require` en la URL JDBC.
-- Credenciales: verifica usuario/contraseña exactos de Render.
+- Error “Falta el directorio raíz del servicio /opt/render/project/src/backend-HomeStock”: ajusta el servicio para Root Directory VACÍO y usa `./Dockerfile` y `.` como contexto.
+- SSL: asegura `?sslmode=require` en la URL JDBC.
 - Migraciones Flyway: deshabilitadas por defecto; activa con `SPRING_FLYWAY_ENABLED=true` si quieres aplicar scripts en `classpath:bd/migration`.
-- Puerto en Render: la imagen respeta `PORT` y por defecto usa `8080` localmente.
-- Health check: por defecto `/v1/api-docs`. Si usas Actuator, cambia a `/actuator/health`.
+- Puerto: Render inyecta `PORT`. La imagen lo respeta y por defecto usa `8080` localmente.
+- Health check: `/v1/api-docs` (o `/actuator/health` si usas Actuator).
 
 ## 6) Referencia rápida de archivos
-- `backend-HomeStock/Dockerfile`: multi-stage con Temurin 17, respeta `PORT` y ejecuta `app.jar`.
-- `backend-HomeStock/render.yaml`: servicio Docker en Virginia (si usas Blueprint monorepo, puede estar en root con paths al subdirectorio).
-- `backend-HomeStock/src/main/resources/application.properties`: lee variables `SPRING_DATASOURCE_*` y `PORT`.
-- `.dockerignore` en `backend-HomeStock/` para acelerar builds.
+- `Dockerfile` (raíz): multi-stage Temurin 17, ejecuta `app.jar` y respeta `PORT`.
+- `render.yaml` (raíz): servicio Docker en Virginia con paths relativos.
+- `src/main/resources/application.properties`: usa `SPRING_DATASOURCE_*` y `PORT`.
+- `.dockerignore` (raíz): acelera builds evitando incluir caches/artefactos.
