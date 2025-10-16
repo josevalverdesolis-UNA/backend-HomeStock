@@ -170,7 +170,7 @@ class MovementService(
             throw BusinessException("unitPrice is required and must be > 0 for PURCHASE")
         }
         // Normalización: almacenar cantidad positiva, aplicar signo al stock
-        val absQty = abs(input.quantity)
+        val absQty = kotlin.math.abs(input.quantity)
         val stockDelta = when (input.type) {
             MovementTypeDTO.PURCHASE -> absQty
             MovementTypeDTO.CONSUMPTION -> -absQty
@@ -195,7 +195,7 @@ class MovementService(
 
     private fun upsertAutoShoppingItem(product: Product) {
         val userId = product.user?.id ?: return
-        val existing = shoppingRepo.findByUser_IdAndProduct_IdAndIsPurchasedFalse(userId, product.id!!)
+        val existing = shoppingRepo.findByUser_IdAndProduct_IdAndPurchasedFalse(userId, product.id!!)
         val needed = (product.minStock - product.quantity).coerceAtLeast(1)
         if (existing.isPresent) {
             val it = existing.get()
@@ -206,7 +206,7 @@ class MovementService(
                 user = product.user,
                 product = product,
                 desiredQuantity = needed,
-                isPurchased = false,
+                purchased = false,
                 purchasedAt = null,
                 source = ShoppingSourceEntity.AUTO_RULE,
                 targetStore = product.purchaseLocation
@@ -217,7 +217,7 @@ class MovementService(
 
     private fun manageLowStockAlert(product: Product) {
         val userId = product.user?.id ?: return
-        val active = alertRepo.findAllByUser_IdAndProduct_IdAndIsActiveTrue(userId, product.id!!)
+        val active = alertRepo.findAllByUser_IdAndProduct_IdAndActiveTrue(userId, product.id!!)
         val below = product.quantity <= product.minStock
         if (below && active.isEmpty()) {
             alertRepo.save(
@@ -227,11 +227,11 @@ class MovementService(
                     type = AlertTypeEntity.LOW_STOCK,
                     message = "Stock below minimum for ${product.name}",
                     triggerAt = Instant.now(),
-                    isActive = true
+                    active = true
                 )
             )
         } else if (!below && active.isNotEmpty()) {
-            active.forEach { it.isActive = false; it.resolvedAt = Instant.now() }
+            active.forEach { it.active = false; it.resolvedAt = Instant.now() }
         }
     }
 }
@@ -248,13 +248,13 @@ class ShoppingItemService(
     private val userRepo: UserRepository,
 ) {
     fun listPending(userId: Long): List<ShoppingItemResult> =
-        repo.findAllByUser_IdAndIsPurchasedFalse(userId).map(mapper::toResult)
+        repo.findAllByUser_IdAndPurchasedFalse(userId).map(mapper::toResult)
 
     @Transactional
     fun create(input: ShoppingItemCreate): ShoppingItemResult {
         if (!userRepo.existsById(input.userId)) notFound("User", input.userId)
         if (!productRepo.existsById(input.productId)) notFound("Product", input.productId)
-        val exists = repo.existsByUser_IdAndProduct_IdAndIsPurchasedFalse(input.userId, input.productId)
+        val exists = repo.existsByUser_IdAndProduct_IdAndPurchasedFalse(input.userId, input.productId)
         if (exists) throw BusinessException("Shopping item already exists (pending)", HttpStatus.CONFLICT)
         val entity = mapper.fromCreate(input)
         return mapper.toResult(repo.save(entity))
@@ -278,7 +278,7 @@ class AlertService(
     private val mapper: AlertMapper,
 ) {
     fun listActive(userId: Long): List<AlertResult> =
-        repo.findAllByUser_IdAndIsActiveTrue(userId).map(mapper::toResult)
+        repo.findAllByUser_IdAndActiveTrue(userId).map(mapper::toResult)
 
     @Transactional
     fun create(input: AlertCreate): AlertResult {
@@ -296,7 +296,7 @@ class AlertService(
     @Transactional
     fun close(id: Long): AlertResult {
         val entity = repo.findById(id).orElseThrow { notFound("Alert", id) }
-        entity.isActive = false
+        entity.active = false
         entity.resolvedAt = Instant.now()
         return mapper.toResult(entity)
     }

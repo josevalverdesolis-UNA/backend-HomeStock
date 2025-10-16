@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package cr.ac.una.homestock.domain.entity
 
 import jakarta.persistence.*
@@ -246,7 +248,7 @@ open class ShoppingItem(
     open var desiredQuantity: Int = 1,
 
     @Column(name = "is_purchased", nullable = false)
-    open var isPurchased: Boolean = false,
+    open var purchased: Boolean = false,
 
     @Column
     open var purchasedAt: Instant? = null,
@@ -294,7 +296,7 @@ open class Alert(
     open var triggerAt: Instant = Instant.now(),
 
     @Column(name = "is_active", nullable = false)
-    open var isActive: Boolean = true,
+    open var active: Boolean = true,
 
     @Column
     open var resolvedAt: Instant? = null,

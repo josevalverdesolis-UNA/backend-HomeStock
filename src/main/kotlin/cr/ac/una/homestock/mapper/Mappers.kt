@@ -19,7 +19,7 @@ import cr.ac.una.homestock.domain.entity.AlertType as AlertTypeEntity
  * - componentsModel = "spring" para inyección
  */
 
-// Configuración común: silenciar propiedades destino no mapeadas (id/createdAt/updatedAt, relaciones gestionadas en servicio)
+// Configuración común: Política ERROR y nulls IGNORES
 @MapperConfig(
     unmappedTargetPolicy = ReportingPolicy.ERROR,
     nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE
@@ -91,6 +91,7 @@ interface CategoryMapper {
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mappings(
+        Mapping(target = "id", ignore = true),
         Mapping(target = "createdAt", ignore = true),
         Mapping(target = "updatedAt", ignore = true)
     )
@@ -114,6 +115,7 @@ interface StoreMapper {
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mappings(
+        Mapping(target = "id", ignore = true),
         Mapping(target = "createdAt", ignore = true),
         Mapping(target = "updatedAt", ignore = true)
     )
@@ -141,6 +143,7 @@ interface ProductMapper {
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mappings(
+        Mapping(target = "id", ignore = true),
         Mapping(target = "user", ignore = true), // user no se actualiza por PATCH
         Mapping(target = "category", source = "categoryId", qualifiedByName = ["categoryFromId"]),
         Mapping(target = "purchaseLocation", source = "purchaseLocationId", qualifiedByName = ["storeFromId"]),
@@ -194,7 +197,7 @@ interface ShoppingItemMapper {
         Mapping(target = "id", ignore = true),
         Mapping(target = "user", source = "userId", qualifiedByName = ["userFromId"]),
         Mapping(target = "product", source = "productId", qualifiedByName = ["productFromId"]),
-        Mapping(target = "isPurchased", constant = "false"),
+        Mapping(target = "purchased", constant = "false"),
         Mapping(target = "purchasedAt", ignore = true),
         Mapping(target = "targetStore", source = "targetStoreId", qualifiedByName = ["storeFromId"]),
         Mapping(target = "createdAt", ignore = true),
@@ -204,6 +207,10 @@ interface ShoppingItemMapper {
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mappings(
+        Mapping(target = "id", ignore = true),
+        Mapping(target = "user", ignore = true),
+        Mapping(target = "product", ignore = true),
+        Mapping(target = "source", ignore = true),
         Mapping(target = "targetStore", source = "targetStoreId", qualifiedByName = ["storeFromId"]),
         Mapping(target = "createdAt", ignore = true),
         Mapping(target = "updatedAt", ignore = true)
@@ -229,7 +236,7 @@ interface AlertMapper {
         Mapping(target = "id", ignore = true),
         Mapping(target = "user", source = "userId", qualifiedByName = ["userFromId"]),
         Mapping(target = "product", source = "productId", qualifiedByName = ["productFromId"]),
-        Mapping(target = "isActive", source = "isActive"),
+        Mapping(target = "active", source = "active"),
         Mapping(target = "createdAt", ignore = true),
         Mapping(target = "updatedAt", ignore = true)
     )
@@ -237,6 +244,10 @@ interface AlertMapper {
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mappings(
+        Mapping(target = "id", ignore = true),
+        Mapping(target = "user", ignore = true),
+        Mapping(target = "product", ignore = true),
+        Mapping(target = "type", ignore = true),
         Mapping(target = "createdAt", ignore = true),
         Mapping(target = "updatedAt", ignore = true)
     )
@@ -296,4 +307,4 @@ interface ProductRatingMapper {
     fun toResult(entity: ProductRating): ProductRatingResult
 }
 
-// Comentario de cambios: Policy ERROR e ignores explícitos para auditable fields en create/update
+// Comentario de cambios: Booleans estandarizados (purchased/active); updates ignoran id/relaciones cuando procede; política ERROR aplicada

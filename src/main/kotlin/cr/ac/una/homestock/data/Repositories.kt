@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package cr.ac.una.homestock.repository
 
 import cr.ac.una.homestock.domain.entity.*
@@ -67,9 +69,9 @@ interface MovementRepository : JpaRepository<Movement, Long> {
 
 @Repository
 interface ShoppingItemRepository : JpaRepository<ShoppingItem, Long> {
-    fun findAllByUser_IdAndIsPurchasedFalse(userId: Long): List<ShoppingItem>
-    fun findByUser_IdAndProduct_IdAndIsPurchasedFalse(userId: Long, productId: Long): Optional<ShoppingItem>
-    fun existsByUser_IdAndProduct_IdAndIsPurchasedFalse(userId: Long, productId: Long): Boolean
+    fun findAllByUser_IdAndPurchasedFalse(userId: Long): List<ShoppingItem>
+    fun findByUser_IdAndProduct_IdAndPurchasedFalse(userId: Long, productId: Long): Optional<ShoppingItem>
+    fun existsByUser_IdAndProduct_IdAndPurchasedFalse(userId: Long, productId: Long): Boolean
 }
 
 // ------------------------------
@@ -78,9 +80,9 @@ interface ShoppingItemRepository : JpaRepository<ShoppingItem, Long> {
 
 @Repository
 interface AlertRepository : JpaRepository<Alert, Long> {
-    fun findAllByUser_IdAndIsActiveTrue(userId: Long): List<Alert>
-    fun findAllByUser_IdAndProduct_IdAndIsActiveTrue(userId: Long, productId: Long): List<Alert>
-    fun findAllByTriggerAtBeforeAndIsActiveTrue(now: Instant): List<Alert>
+    fun findAllByUser_IdAndActiveTrue(userId: Long): List<Alert>
+    fun findAllByUser_IdAndProduct_IdAndActiveTrue(userId: Long, productId: Long): List<Alert>
+    fun findAllByTriggerAtBeforeAndActiveTrue(now: Instant): List<Alert>
 }
 
 // ------------------------------
@@ -102,4 +104,4 @@ interface ProductRatingRepository : JpaRepository<ProductRating, Long> {
     fun findAllByProduct_Id(productId: Long): List<ProductRating>
 }
 
-// Comentario de cambios: StoreRepository agrega existsByNameIgnoreCaseAndLocation* para UQ compuesta
+// Comentario de cambios: Actualizados métodos derivados para purchased/active

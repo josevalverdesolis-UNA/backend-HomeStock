@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package cr.ac.una.homestock.dto
 
 import com.fasterxml.jackson.annotation.JsonInclude
@@ -222,7 +224,7 @@ data class ShoppingItemCreate(
 data class ShoppingItemUpdate(
     @field:Min(1)
     val desiredQuantity: Int? = null,
-    val isPurchased: Boolean? = null,
+    val purchased: Boolean? = null,
     val purchasedAt: Instant? = null,
     val targetStoreId: Long? = null,
 )
@@ -233,7 +235,7 @@ data class ShoppingItemResult(
     val userId: Long,
     val productId: Long,
     val desiredQuantity: Int,
-    val isPurchased: Boolean,
+    val purchased: Boolean,
     val purchasedAt: Instant?,
     val source: ShoppingSource,
     val targetStoreId: Long?,
@@ -253,14 +255,14 @@ data class AlertCreate(
     val type: AlertType,
     val message: String? = null,
     val triggerAt: Instant? = null, // si null, se calculará en servicio
-    val isActive: Boolean = true,
+    val active: Boolean = true,
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class AlertUpdate(
     val message: String? = null,
     val triggerAt: Instant? = null,
-    val isActive: Boolean? = null,
+    val active: Boolean? = null,
     val resolvedAt: Instant? = null,
 )
 
@@ -272,7 +274,7 @@ data class AlertResult(
     val type: AlertType,
     val message: String?,
     val triggerAt: Instant,
-    val isActive: Boolean,
+    val active: Boolean,
     val resolvedAt: Instant?,
     val createdAt: Instant,
 )
