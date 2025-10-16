@@ -16,6 +16,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.MissingServletRequestParameterException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.servlet.resource.NoResourceFoundException
 import java.time.Instant
 
 /**
@@ -55,7 +56,7 @@ open class BusinessException(
 // Controller Advice global
 // ------------------------------
 
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = ["cr.ac.una.homestock"])
 class GlobalExceptionHandler {
 
     // 1) Bean Validation: @Valid en cuerpos (DTOs)
@@ -116,6 +117,18 @@ class GlobalExceptionHandler {
     // 5) No encontrado (EntityNotFound / NoSuchElement)
     @ExceptionHandler(value = [EntityNotFoundException::class, NoSuchElementException::class])
     fun handleNotFound(ex: Exception, req: HttpServletRequest): ResponseEntity<ApiError> {
+        val body = ApiError(
+            status = HttpStatus.NOT_FOUND.value(),
+            error = HttpStatus.NOT_FOUND.reasonPhrase,
+            message = ex.message,
+            path = req.requestURI
+        )
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body)
+    }
+
+    // 5b) Recurso estático o ruta no encontrada (Spring MVC Resource chain)
+    @ExceptionHandler(NoResourceFoundException::class)
+    fun handleNoResourceFound(ex: NoResourceFoundException, req: HttpServletRequest): ResponseEntity<ApiError> {
         val body = ApiError(
             status = HttpStatus.NOT_FOUND.value(),
             error = HttpStatus.NOT_FOUND.reasonPhrase,

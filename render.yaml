@@ -11,8 +11,8 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
 
-    # Health check fiable usando SpringDoc
-    healthCheckPath: /v1/api-docs
+    # Health check mediante Spring Boot Actuator
+    healthCheckPath: /actuator/health
 
     envVars:
       # Usa la URL JDBC completa: jdbc:postgresql://HOST:PORT/DB?sslmode=require

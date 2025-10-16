@@ -28,6 +28,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
+	implementation("org.springframework.boot:spring-boot-starter-actuator")
 
 	// JSON Kotlin
 	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
@@ -45,20 +46,6 @@ dependencies {
 
 	// Tests
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
-
-	// Spring Data JPA
-	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-
-	// Driver PostgreSQL
-	runtimeOnly("org.postgresql:postgresql")
-
-	// Flyway migraciones
-	implementation("org.flywaydb:flyway-core")
-	// (opcional) motor específico de Postgres para Flyway 10+
-	// implementation("org.flywaydb:flyway-database-postgresql")
-
-	// Validación (si usas @Valid)
-	implementation("org.springframework.boot:spring-boot-starter-validation")
 }
 
 kapt { correctErrorTypes = true }
