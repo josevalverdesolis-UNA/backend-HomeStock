@@ -75,6 +75,10 @@ class ProductController(
     @PatchMapping("/products/{id}")
     fun update(@PathVariable id: Long, @Valid @RequestBody body: ProductUpdate): ProductResult =
         service.update(id, body)
+
+    @DeleteMapping("/products/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun delete(@PathVariable id: Long) = service.delete(id)
 }
 
 @Validated
@@ -121,6 +125,9 @@ class AlertController(
 
     @PatchMapping("/alerts/{id}")
     fun update(@PathVariable id: Long, @Valid @RequestBody body: AlertUpdate): AlertResult = service.update(id, body)
+
+    @PatchMapping("/alerts/{id}/close")
+    fun close(@PathVariable id: Long): AlertResult = service.close(id)
 }
 
 @Validated

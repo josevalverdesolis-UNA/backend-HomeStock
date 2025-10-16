@@ -95,8 +95,8 @@ open class Category(
 @Entity
 @Table(
     name = "stores",
-    uniqueConstraints = [UniqueConstraint(name = "uk_store_name", columnNames = ["name"])],
-    indexes = [Index(name = "ix_store_name", columnList = "name", unique = true)]
+    uniqueConstraints = [UniqueConstraint(name = "uk_store_name_location", columnNames = ["name", "location"])],
+    indexes = [Index(name = "ix_store_name_location", columnList = "name, location", unique = true)]
 )
 open class Store(
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -142,10 +142,13 @@ open class Product(
     @Column(nullable = false)
     open var quantity: Int = 0,
 
-    @Column(nullable = false)
+    @Column(name = "min_stock", nullable = false)
     open var minStock: Int = 0,
 
-    @Column
+    @Column(name = "acquisition_date")
+    open var acquisitionDate: LocalDate? = null,
+
+    @Column(name = "expiry_date")
     open var expiryDate: LocalDate? = null,
 
     @Column(precision = 19, scale = 4)
@@ -157,7 +160,7 @@ open class Product(
     @Column
     open var brand: String? = null,
 
-    @Column
+    @Column(name = "image_url")
     open var imageUrl: String? = null,
 ) : Auditable()
 
@@ -172,7 +175,8 @@ open class Product(
         Index(name = "ix_movement_user", columnList = "user_id"),
         Index(name = "ix_movement_product", columnList = "product_id"),
         Index(name = "ix_movement_store", columnList = "store_id"),
-        Index(name = "ix_movement_created", columnList = "created_at")
+        Index(name = "ix_movement_created", columnList = "created_at"),
+        Index(name = "ix_movement_occurred", columnList = "occurred_at")
     ]
 )
 open class Movement(
@@ -190,10 +194,7 @@ open class Movement(
     open var type: MovementType = MovementType.PURCHASE,
 
     /**
-     * Convención de signo (en servicio):
-     *  - PURCHASE => quantity > 0
-     *  - CONSUMPTION => quantity < 0
-     *  - ADJUSTMENT => +/-
+     * quantity se almacena siempre positiva; el signo efectivo se aplica según el tipo en servicio.
      */
     @Column(nullable = false)
     open var quantity: Int = 0,
@@ -206,6 +207,9 @@ open class Movement(
 
     @Column
     open var note: String? = null,
+
+    @Column(name = "occurred_at", nullable = false)
+    open var occurredAt: Instant = Instant.now(),
 ) : Auditable()
 
 // ------------------------------
@@ -223,7 +227,9 @@ open class Movement(
     ],
     indexes = [
         Index(name = "ix_shopping_user", columnList = "user_id"),
-        Index(name = "ix_shopping_product", columnList = "product_id")
+        Index(name = "ix_shopping_product", columnList = "product_id"),
+        Index(name = "ix_shopping_is_purchased", columnList = "is_purchased"),
+        Index(name = "ix_shopping_target_store", columnList = "target_store_id")
     ]
 )
 open class ShoppingItem(
@@ -236,8 +242,8 @@ open class ShoppingItem(
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "product_id", nullable = false)
     open var product: Product? = null,
 
-    @Column(nullable = false)
-    open var quantity: Int = 1,
+    @Column(name = "desired_quantity", nullable = false)
+    open var desiredQuantity: Int = 1,
 
     @Column(name = "is_purchased", nullable = false)
     open var isPurchased: Boolean = false,
@@ -248,6 +254,9 @@ open class ShoppingItem(
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     open var source: ShoppingSource = ShoppingSource.MANUAL,
+
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "target_store_id")
+    open var targetStore: Store? = null,
 ) : Auditable()
 
 // ------------------------------

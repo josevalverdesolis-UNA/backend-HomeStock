@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 import java.time.Instant
+import kotlin.math.abs
 
 // Alias para enums DTO vs Entity
 import cr.ac.una.homestock.dto.MovementType as MovementTypeDTO
@@ -67,9 +68,11 @@ class StoreService(
 
     @Transactional
     fun create(input: StoreCreate): StoreResult {
-        if (repo.existsByNameIgnoreCase(input.name)) {
-            throw BusinessException("Store name already exists", HttpStatus.CONFLICT)
-        }
+        val conflict = if (input.location == null)
+            repo.existsByNameIgnoreCaseAndLocationIsNull(input.name)
+        else
+            repo.existsByNameIgnoreCaseAndLocationIgnoreCase(input.name, input.location!!)
+        if (conflict) throw BusinessException("Store (name, location) already exists", HttpStatus.CONFLICT)
         val entity = mapper.toEntity(input)
         return mapper.toResult(repo.save(entity))
     }
@@ -77,6 +80,16 @@ class StoreService(
     @Transactional
     fun update(id: Long, input: StoreUpdate): StoreResult {
         val entity = repo.findById(id).orElseThrow { notFound("Store", id) }
+        // Validar conflicto si cambian name/location
+        val newName = input.name ?: entity.name
+        val newLoc = input.location ?: entity.location
+        val conflict = if (newLoc == null)
+            repo.existsByNameIgnoreCaseAndLocationIsNull(newName)
+        else
+            repo.existsByNameIgnoreCaseAndLocationIgnoreCase(newName, newLoc!!)
+        if (conflict && !(newName.equals(entity.name, true) && (newLoc?.equals(entity.location, true) ?: entity.location == null))) {
+            throw BusinessException("Store (name, location) already exists", HttpStatus.CONFLICT)
+        }
         mapper.update(input, entity)
         return mapper.toResult(entity)
     }
@@ -128,6 +141,12 @@ class ProductService(
         val entity = repo.findByUser_IdAndId(userId, id).orElseThrow { notFound("Product", id) }
         return mapper.toResult(entity)
     }
+
+    @Transactional
+    fun delete(id: Long) {
+        if (!repo.existsById(id)) notFound("Product", id)
+        repo.deleteById(id)
+    }
 }
 
 // ------------------------------
@@ -150,18 +169,19 @@ class MovementService(
         if (input.type == MovementTypeDTO.PURCHASE && (input.unitPrice == null || input.unitPrice <= BigDecimal.ZERO)) {
             throw BusinessException("unitPrice is required and must be > 0 for PURCHASE")
         }
-        // Normalización de signo para CONSUMPTION
-        val normalizedQty = when (input.type) {
-            MovementTypeDTO.PURCHASE -> if (input.quantity < 0) -input.quantity else input.quantity
-            MovementTypeDTO.CONSUMPTION -> if (input.quantity > 0) -input.quantity else input.quantity
-            MovementTypeDTO.ADJUSTMENT -> input.quantity
+        // Normalización: almacenar cantidad positiva, aplicar signo al stock
+        val absQty = abs(input.quantity)
+        val stockDelta = when (input.type) {
+            MovementTypeDTO.PURCHASE -> absQty
+            MovementTypeDTO.CONSUMPTION -> -absQty
+            MovementTypeDTO.ADJUSTMENT -> if (input.quantity >= 0) absQty else -absQty
         }
-        // Crear movement
-        val entity = mapper.fromCreate(input.copy(quantity = normalizedQty))
+        // Crear movement con occurredAt por defecto si no viene
+        val entity = mapper.fromCreate(input.copy(quantity = absQty, occurredAt = input.occurredAt ?: Instant.now()))
         val saved = repo.save(entity)
 
         // Impacto de stock
-        product.quantity += normalizedQty
+        product.quantity += stockDelta
         if (product.quantity < 0) throw BusinessException("Stock cannot be negative after movement")
 
         // Auto-regla: crear/actualizar ShoppingItem si bajo stock
@@ -170,8 +190,6 @@ class MovementService(
         // Alertas LOW_STOCK activas
         manageLowStockAlert(product)
 
-        // Persistir cambios de product (en el mismo flush)
-        // JPA lo hace al final de la transacción; opcionalmente productRepo.save(product)
         return mapper.toResult(saved)
     }
 
@@ -181,16 +199,17 @@ class MovementService(
         val needed = (product.minStock - product.quantity).coerceAtLeast(1)
         if (existing.isPresent) {
             val it = existing.get()
-            it.quantity = needed
+            it.desiredQuantity = needed
             it.source = ShoppingSourceEntity.AUTO_RULE
         } else {
             val si = ShoppingItem(
                 user = product.user,
                 product = product,
-                quantity = needed,
+                desiredQuantity = needed,
                 isPurchased = false,
                 purchasedAt = null,
                 source = ShoppingSourceEntity.AUTO_RULE,
+                targetStore = product.purchaseLocation
             )
             shoppingRepo.save(si)
         }
@@ -212,7 +231,6 @@ class MovementService(
                 )
             )
         } else if (!below && active.isNotEmpty()) {
-            // resolver alertas existentes
             active.forEach { it.isActive = false; it.resolvedAt = Instant.now() }
         }
     }
@@ -274,6 +292,14 @@ class AlertService(
         mapper.update(input, entity)
         return mapper.toResult(entity)
     }
+
+    @Transactional
+    fun close(id: Long): AlertResult {
+        val entity = repo.findById(id).orElseThrow { notFound("Alert", id) }
+        entity.isActive = false
+        entity.resolvedAt = Instant.now()
+        return mapper.toResult(entity)
+    }
 }
 
 // ------------------------------
@@ -325,4 +351,4 @@ class ProductRatingService(
     }
 }
 
-// Comentario de cambios: limpieza de imports y parámetros no usados en Services.kt
+// Comentario de cambios: Movement guarda quantity positiva y occurredAt; ShoppingItem usa desiredQuantity y targetStore; StoreService valida UQ (name, location); AlertService close()

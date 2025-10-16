@@ -4,6 +4,14 @@ import cr.ac.una.homestock.domain.entity.*
 import cr.ac.una.homestock.dto.*
 import org.mapstruct.*
 
+// Aliases para evitar fully-qualified en EnumMapper
+import cr.ac.una.homestock.dto.MovementType as MovementTypeDto
+import cr.ac.una.homestock.domain.entity.MovementType as MovementTypeEntity
+import cr.ac.una.homestock.dto.ShoppingSource as ShoppingSourceDto
+import cr.ac.una.homestock.domain.entity.ShoppingSource as ShoppingSourceEntity
+import cr.ac.una.homestock.dto.AlertType as AlertTypeDto
+import cr.ac.una.homestock.domain.entity.AlertType as AlertTypeEntity
+
 /**
  * Mappers MapStruct alineados con DTOs y Entidades.
  * - Estrategia para updates parciales: IGNORE en nulls
@@ -13,7 +21,7 @@ import org.mapstruct.*
 
 // Configuración común: silenciar propiedades destino no mapeadas (id/createdAt/updatedAt, relaciones gestionadas en servicio)
 @MapperConfig(
-    unmappedTargetPolicy = ReportingPolicy.IGNORE,
+    unmappedTargetPolicy = ReportingPolicy.ERROR,
     nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE
 )
 interface CommonMapperConfig
@@ -56,22 +64,16 @@ abstract class IdRefMapper {
 @Mapper(componentModel = "spring", config = CommonMapperConfig::class)
 interface EnumMapper {
     // MovementType
-    fun toEntityType(src: cr.ac.una.homestock.dto.MovementType): cr.ac.una.homestock.domain.entity.MovementType =
-        cr.ac.una.homestock.domain.entity.MovementType.valueOf(src.name)
-    fun toDtoType(src: cr.ac.una.homestock.domain.entity.MovementType): cr.ac.una.homestock.dto.MovementType =
-        cr.ac.una.homestock.dto.MovementType.valueOf(src.name)
+    fun toEntityType(src: MovementTypeDto): MovementTypeEntity = MovementTypeEntity.valueOf(src.name)
+    fun toDtoType(src: MovementTypeEntity): MovementTypeDto = MovementTypeDto.valueOf(src.name)
 
     // ShoppingSource
-    fun toEntitySource(src: cr.ac.una.homestock.dto.ShoppingSource): cr.ac.una.homestock.domain.entity.ShoppingSource =
-        cr.ac.una.homestock.domain.entity.ShoppingSource.valueOf(src.name)
-    fun toDtoSource(src: cr.ac.una.homestock.domain.entity.ShoppingSource): cr.ac.una.homestock.dto.ShoppingSource =
-        cr.ac.una.homestock.dto.ShoppingSource.valueOf(src.name)
+    fun toEntitySource(src: ShoppingSourceDto): ShoppingSourceEntity = ShoppingSourceEntity.valueOf(src.name)
+    fun toDtoSource(src: ShoppingSourceEntity): ShoppingSourceDto = ShoppingSourceDto.valueOf(src.name)
 
     // AlertType
-    fun toEntityAlert(src: cr.ac.una.homestock.dto.AlertType): cr.ac.una.homestock.domain.entity.AlertType =
-        cr.ac.una.homestock.domain.entity.AlertType.valueOf(src.name)
-    fun toDtoAlert(src: cr.ac.una.homestock.domain.entity.AlertType): cr.ac.una.homestock.dto.AlertType =
-        cr.ac.una.homestock.dto.AlertType.valueOf(src.name)
+    fun toEntityAlert(src: AlertTypeDto): AlertTypeEntity = AlertTypeEntity.valueOf(src.name)
+    fun toDtoAlert(src: AlertTypeEntity): AlertTypeDto = AlertTypeDto.valueOf(src.name)
 }
 
 // ------------------------------
@@ -80,9 +82,18 @@ interface EnumMapper {
 
 @Mapper(componentModel = "spring", config = CommonMapperConfig::class)
 interface CategoryMapper {
+    @Mappings(
+        Mapping(target = "id", ignore = true),
+        Mapping(target = "createdAt", ignore = true),
+        Mapping(target = "updatedAt", ignore = true)
+    )
     fun toEntity(input: CategoryCreate): Category
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mappings(
+        Mapping(target = "createdAt", ignore = true),
+        Mapping(target = "updatedAt", ignore = true)
+    )
     fun update(input: CategoryUpdate, @MappingTarget entity: Category)
 
     fun toResult(entity: Category): CategoryResult
@@ -94,9 +105,18 @@ interface CategoryMapper {
 
 @Mapper(componentModel = "spring", config = CommonMapperConfig::class)
 interface StoreMapper {
+    @Mappings(
+        Mapping(target = "id", ignore = true),
+        Mapping(target = "createdAt", ignore = true),
+        Mapping(target = "updatedAt", ignore = true)
+    )
     fun toEntity(input: StoreCreate): Store
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mappings(
+        Mapping(target = "createdAt", ignore = true),
+        Mapping(target = "updatedAt", ignore = true)
+    )
     fun update(input: StoreUpdate, @MappingTarget entity: Store)
 
     fun toResult(entity: Store): StoreResult
@@ -113,7 +133,9 @@ interface ProductMapper {
         Mapping(target = "id", ignore = true),
         Mapping(target = "user", source = "userId", qualifiedByName = ["userFromId"]),
         Mapping(target = "category", source = "categoryId", qualifiedByName = ["categoryFromId"]),
-        Mapping(target = "purchaseLocation", source = "purchaseLocationId", qualifiedByName = ["storeFromId"])
+        Mapping(target = "purchaseLocation", source = "purchaseLocationId", qualifiedByName = ["storeFromId"]),
+        Mapping(target = "createdAt", ignore = true),
+        Mapping(target = "updatedAt", ignore = true)
     )
     fun fromCreate(input: ProductCreate): Product
 
@@ -121,7 +143,9 @@ interface ProductMapper {
     @Mappings(
         Mapping(target = "user", ignore = true), // user no se actualiza por PATCH
         Mapping(target = "category", source = "categoryId", qualifiedByName = ["categoryFromId"]),
-        Mapping(target = "purchaseLocation", source = "purchaseLocationId", qualifiedByName = ["storeFromId"])
+        Mapping(target = "purchaseLocation", source = "purchaseLocationId", qualifiedByName = ["storeFromId"]),
+        Mapping(target = "createdAt", ignore = true),
+        Mapping(target = "updatedAt", ignore = true)
     )
     fun update(input: ProductUpdate, @MappingTarget entity: Product)
 
@@ -144,7 +168,10 @@ interface MovementMapper {
         Mapping(target = "id", ignore = true),
         Mapping(target = "user", source = "userId", qualifiedByName = ["userFromId"]),
         Mapping(target = "product", source = "productId", qualifiedByName = ["productFromId"]),
-        Mapping(target = "store", source = "storeId", qualifiedByName = ["storeFromId"])
+        Mapping(target = "store", source = "storeId", qualifiedByName = ["storeFromId"]),
+        Mapping(target = "occurredAt", source = "occurredAt"),
+        Mapping(target = "createdAt", ignore = true),
+        Mapping(target = "updatedAt", ignore = true)
     )
     fun fromCreate(input: MovementCreate): Movement
 
@@ -167,18 +194,26 @@ interface ShoppingItemMapper {
         Mapping(target = "id", ignore = true),
         Mapping(target = "user", source = "userId", qualifiedByName = ["userFromId"]),
         Mapping(target = "product", source = "productId", qualifiedByName = ["productFromId"]),
-        Mapping(target = "purchased", constant = "false"),
-        Mapping(target = "purchasedAt", ignore = true)
+        Mapping(target = "isPurchased", constant = "false"),
+        Mapping(target = "purchasedAt", ignore = true),
+        Mapping(target = "targetStore", source = "targetStoreId", qualifiedByName = ["storeFromId"]),
+        Mapping(target = "createdAt", ignore = true),
+        Mapping(target = "updatedAt", ignore = true)
     )
     fun fromCreate(input: ShoppingItemCreate): ShoppingItem
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mappings(
+        Mapping(target = "targetStore", source = "targetStoreId", qualifiedByName = ["storeFromId"]),
+        Mapping(target = "createdAt", ignore = true),
+        Mapping(target = "updatedAt", ignore = true)
+    )
     fun update(input: ShoppingItemUpdate, @MappingTarget entity: ShoppingItem)
 
     @Mappings(
         Mapping(target = "userId", source = "user", qualifiedByName = ["idFromUser"]),
         Mapping(target = "productId", source = "product", qualifiedByName = ["idFromProduct"]),
-        Mapping(target = "isPurchased", source = "purchased")
+        Mapping(target = "targetStoreId", source = "targetStore", qualifiedByName = ["idFromStore"])
     )
     fun toResult(entity: ShoppingItem): ShoppingItemResult
 }
@@ -194,17 +229,22 @@ interface AlertMapper {
         Mapping(target = "id", ignore = true),
         Mapping(target = "user", source = "userId", qualifiedByName = ["userFromId"]),
         Mapping(target = "product", source = "productId", qualifiedByName = ["productFromId"]),
-        Mapping(target = "active", source = "active")
+        Mapping(target = "isActive", source = "isActive"),
+        Mapping(target = "createdAt", ignore = true),
+        Mapping(target = "updatedAt", ignore = true)
     )
     fun fromCreate(input: AlertCreate): Alert
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mappings(
+        Mapping(target = "createdAt", ignore = true),
+        Mapping(target = "updatedAt", ignore = true)
+    )
     fun update(input: AlertUpdate, @MappingTarget entity: Alert)
 
     @Mappings(
         Mapping(target = "userId", source = "user", qualifiedByName = ["idFromUser"]),
-        Mapping(target = "productId", source = "product", qualifiedByName = ["idFromProduct"]),
-        Mapping(target = "isActive", source = "active")
+        Mapping(target = "productId", source = "product", qualifiedByName = ["idFromProduct"])
     )
     fun toResult(entity: Alert): AlertResult
 }
@@ -220,7 +260,9 @@ interface PriceHistoryMapper {
         Mapping(target = "id", ignore = true),
         Mapping(target = "product", source = "productId", qualifiedByName = ["productFromId"]),
         Mapping(target = "store", source = "storeId", qualifiedByName = ["storeFromId"]),
-        Mapping(target = "recordedAt", source = "recordedAt")
+        Mapping(target = "recordedAt", source = "recordedAt"),
+        Mapping(target = "createdAt", ignore = true),
+        Mapping(target = "updatedAt", ignore = true)
     )
     fun fromCreate(input: PriceHistoryCreate): PriceHistory
 
@@ -241,7 +283,9 @@ interface ProductRatingMapper {
     @Mappings(
         Mapping(target = "id", ignore = true),
         Mapping(target = "user", source = "userId", qualifiedByName = ["userFromId"]),
-        Mapping(target = "product", source = "productId", qualifiedByName = ["productFromId"])
+        Mapping(target = "product", source = "productId", qualifiedByName = ["productFromId"]),
+        Mapping(target = "createdAt", ignore = true),
+        Mapping(target = "updatedAt", ignore = true)
     )
     fun fromCreate(input: ProductRatingCreate): ProductRating
 
@@ -252,4 +296,4 @@ interface ProductRatingMapper {
     fun toResult(entity: ProductRating): ProductRatingResult
 }
 
-// Comentario de cambios: agregado CommonMapperConfig y aplicado a todos los mappers
+// Comentario de cambios: Policy ERROR e ignores explícitos para auditable fields en create/update

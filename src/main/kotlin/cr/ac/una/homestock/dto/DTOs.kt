@@ -116,6 +116,7 @@ data class ProductCreate(
     val quantity: Int = 0,
     @field:Min(0)
     val minStock: Int = 0,
+    val acquisitionDate: LocalDate? = null,
     val expiryDate: LocalDate? = null,
     @field:Positive
     val price: BigDecimal? = null,
@@ -133,6 +134,7 @@ data class ProductUpdate(
     val quantity: Int? = null,
     @field:Min(0)
     val minStock: Int? = null,
+    val acquisitionDate: LocalDate? = null,
     val expiryDate: LocalDate? = null,
     @field:Positive
     val price: BigDecimal? = null,
@@ -150,6 +152,7 @@ data class ProductResult(
     val categoryId: Long,
     val quantity: Int,
     val minStock: Int,
+    val acquisitionDate: LocalDate?,
     val expiryDate: LocalDate?,
     val price: BigDecimal?,
     val purchaseLocationId: Long?,
@@ -172,10 +175,9 @@ data class MovementCreate(
     @field:NotNull
     val type: MovementType,
     /**
-     * Convención de signo a nivel de servicio:
-     *  - PURCHASE      => quantity > 0
-     *  - CONSUMPTION   => quantity < 0 (o se normaliza internamente)
-     *  - ADJUSTMENT    => positivo o negativo
+     * Convención en servicio:
+     *  - Se almacena siempre abs(quantity) en DB.
+     *  - El signo efectivo (±) se aplica a stock según type.
      */
     @field:NotZero(message = "quantity no puede ser 0")
     val quantity: Int,
@@ -183,6 +185,7 @@ data class MovementCreate(
     val unitPrice: BigDecimal? = null, // requerido cuando type=PURCHASE (validado en servicio)
     val storeId: Long? = null,
     val note: String? = null,
+    val occurredAt: Instant? = null,
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -195,6 +198,7 @@ data class MovementResult(
     val unitPrice: BigDecimal?,
     val storeId: Long?,
     val note: String?,
+    val occurredAt: Instant,
     val createdAt: Instant,
 )
 
@@ -209,16 +213,18 @@ data class ShoppingItemCreate(
     @field:NotNull
     val productId: Long,
     @field:Min(1)
-    val quantity: Int = 1,
+    val desiredQuantity: Int = 1,
     val source: ShoppingSource = ShoppingSource.MANUAL,
+    val targetStoreId: Long? = null,
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 data class ShoppingItemUpdate(
     @field:Min(1)
-    val quantity: Int? = null,
+    val desiredQuantity: Int? = null,
     val isPurchased: Boolean? = null,
     val purchasedAt: Instant? = null,
+    val targetStoreId: Long? = null,
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -226,10 +232,11 @@ data class ShoppingItemResult(
     val id: Long,
     val userId: Long,
     val productId: Long,
-    val quantity: Int,
+    val desiredQuantity: Int,
     val isPurchased: Boolean,
     val purchasedAt: Instant?,
     val source: ShoppingSource,
+    val targetStoreId: Long?,
     val createdAt: Instant,
 )
 

@@ -33,6 +33,8 @@ interface CategoryRepository : JpaRepository<Category, Long> {
 interface StoreRepository : JpaRepository<Store, Long> {
     fun findByNameIgnoreCase(name: String): Optional<Store>
     fun existsByNameIgnoreCase(name: String): Boolean
+    fun existsByNameIgnoreCaseAndLocationIgnoreCase(name: String, location: String): Boolean
+    fun existsByNameIgnoreCaseAndLocationIsNull(name: String): Boolean
 }
 
 // ------------------------------
@@ -100,4 +102,4 @@ interface ProductRatingRepository : JpaRepository<ProductRating, Long> {
     fun findAllByProduct_Id(productId: Long): List<ProductRating>
 }
 
-// Comentario de cambios: creado/actualizado archivo -> Repositories.kt
+// Comentario de cambios: StoreRepository agrega existsByNameIgnoreCaseAndLocation* para UQ compuesta
