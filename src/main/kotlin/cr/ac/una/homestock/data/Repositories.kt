@@ -1,64 +1,103 @@
-package cr.ac.una.homestock.data
+package cr.ac.una.homestock.repository
 
-import cr.ac.una.homestock.domain.model.*
-import org.springframework.data.domain.Page
-import org.springframework.data.domain.Pageable
+import cr.ac.una.homestock.domain.entity.*
 import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.Query
-import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
+import java.time.Instant
 import java.util.*
 
-/* =========================
-   CORE
-   ========================= */
+// ------------------------------
+// User
+// ------------------------------
 
 @Repository
-interface UserRepository : JpaRepository<User, UUID>
-
-@Repository
-interface CategoryRepository : JpaRepository<Category, UUID>
-
-@Repository
-interface StoreRepository : JpaRepository<Store, UUID>
-
-/* =========================
-   PRODUCT + MOVEMENT + SHOPPING
-   ========================= */
-
-@Repository
-interface ProductRepository : JpaRepository<Product, UUID> {
-    fun findAllByUser_Id(userId: UUID, pageable: Pageable): Page<Product>
-
-    fun findByUser_IdAndCategory_Id(
-        userId: UUID,
-        categoryId: UUID,
-        pageable: Pageable
-    ): Page<Product>
+interface UserRepository : JpaRepository<User, Long> {
+    fun findByEmail(email: String): Optional<User>
 }
 
+// ------------------------------
+// Category
+// ------------------------------
+
 @Repository
-interface MovementRepository : JpaRepository<Movement, UUID> {
-    fun findByProduct_IdOrderByOccurredAtDesc(productId: UUID): List<Movement>
+interface CategoryRepository : JpaRepository<Category, Long> {
+    fun findByNameIgnoreCase(name: String): Optional<Category>
+    fun existsByNameIgnoreCase(name: String): Boolean
 }
 
+// ------------------------------
+// Store
+// ------------------------------
+
 @Repository
-interface ShoppingItemRepository : JpaRepository<ShoppingItem, UUID> {
-    @Query(
-        "select s from ShoppingItem s " +
-                "where s.product.id = :productId and s.purchasedAt is null"
-    )
-    fun findActiveByProductId(@Param("productId") productId: UUID): ShoppingItem?
+interface StoreRepository : JpaRepository<Store, Long> {
+    fun findByNameIgnoreCase(name: String): Optional<Store>
+    fun existsByNameIgnoreCase(name: String): Boolean
 }
 
-/* =========================
-   EXTRAS
-   ========================= */
-@Repository
-interface AlertRepository : JpaRepository<Alert, UUID>
+// ------------------------------
+// Product
+// ------------------------------
 
 @Repository
-interface PriceHistoryRepository : JpaRepository<PriceHistory, UUID>
+interface ProductRepository : JpaRepository<Product, Long> {
+    fun findAllByUser_Id(userId: Long): List<Product>
+    fun findAllByUser_IdAndCategory_Id(userId: Long, categoryId: Long): List<Product>
+    fun findByUser_IdAndId(userId: Long, id: Long): Optional<Product>
+
+    fun existsByUser_IdAndNameIgnoreCase(userId: Long, name: String): Boolean
+    fun findAllByUser_IdAndNameContainingIgnoreCase(userId: Long, name: String): List<Product>
+}
+
+// ------------------------------
+// Movement
+// ------------------------------
 
 @Repository
-interface ProductRatingRepository : JpaRepository<ProductRating, UUID>
+interface MovementRepository : JpaRepository<Movement, Long> {
+    fun findAllByUser_Id(userId: Long): List<Movement>
+    fun findAllByProduct_IdOrderByCreatedAtDesc(productId: Long): List<Movement>
+}
+
+// ------------------------------
+// ShoppingItem
+// ------------------------------
+
+@Repository
+interface ShoppingItemRepository : JpaRepository<ShoppingItem, Long> {
+    fun findAllByUser_IdAndIsPurchasedFalse(userId: Long): List<ShoppingItem>
+    fun findByUser_IdAndProduct_IdAndIsPurchasedFalse(userId: Long, productId: Long): Optional<ShoppingItem>
+    fun existsByUser_IdAndProduct_IdAndIsPurchasedFalse(userId: Long, productId: Long): Boolean
+}
+
+// ------------------------------
+// Alert
+// ------------------------------
+
+@Repository
+interface AlertRepository : JpaRepository<Alert, Long> {
+    fun findAllByUser_IdAndIsActiveTrue(userId: Long): List<Alert>
+    fun findAllByUser_IdAndProduct_IdAndIsActiveTrue(userId: Long, productId: Long): List<Alert>
+    fun findAllByTriggerAtBeforeAndIsActiveTrue(now: Instant): List<Alert>
+}
+
+// ------------------------------
+// PriceHistory
+// ------------------------------
+
+@Repository
+interface PriceHistoryRepository : JpaRepository<PriceHistory, Long> {
+    fun findTop1ByProduct_IdOrderByRecordedAtDesc(productId: Long): Optional<PriceHistory>
+}
+
+// ------------------------------
+// ProductRating
+// ------------------------------
+
+@Repository
+interface ProductRatingRepository : JpaRepository<ProductRating, Long> {
+    fun findByUser_IdAndProduct_Id(userId: Long, productId: Long): Optional<ProductRating>
+    fun findAllByProduct_Id(productId: Long): List<ProductRating>
+}
+
+// Comentario de cambios: creado/actualizado archivo -> Repositories.kt

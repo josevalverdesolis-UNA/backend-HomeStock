@@ -9,3 +9,5 @@ class BackendHomeStockApplication
 fun main(args: Array<String>) {
     runApplication<BackendHomeStockApplication>(*args)
 }
+
+// Comentario de cambios: creado/actualizado archivo -> BackendHomeStockApplication.kt

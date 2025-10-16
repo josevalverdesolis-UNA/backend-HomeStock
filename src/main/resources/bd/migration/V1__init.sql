@@ -1,96 +1,125 @@
--- USERS
-create table if not exists users (
-  id uuid primary key,
-  name varchar(120) not null,
-  email varchar(160) not null unique
+-- =========================================================================
+--  HomeStock – Esquema base (alineado con Entities.kt)
+-- =========================================================================
+
+-- Usuarios
+CREATE TABLE IF NOT EXISTS users (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(120) NOT NULL,
+    email VARCHAR(160) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
 );
 
--- CATEGORIES
-create table if not exists categories (
-  id uuid primary key,
-  user_id uuid not null references users(id) on delete cascade,
-  name varchar(100) not null,
-  unique(user_id, name)
+-- Categorías (globales)
+CREATE TABLE IF NOT EXISTS categories (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(120) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
 );
 
--- STORES
-create table if not exists stores (
-  id uuid primary key,
-  user_id uuid not null references users(id) on delete cascade,
-  name varchar(140) not null,
-  location varchar(180),
-  unique(user_id, name)
+-- Tiendas (globales)
+CREATE TABLE IF NOT EXISTS stores (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(160) NOT NULL,
+    location VARCHAR(220),
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
 );
 
--- PRODUCTS
-create table if not exists products (
-  id uuid primary key,
-  user_id uuid not null references users(id) on delete cascade,
-  category_id uuid references categories(id) on delete set null,
-  store_id uuid references stores(id) on delete set null,
-  name varchar(160) not null,
-  brand varchar(120),
-  quantity int not null default 0,
-  min_stock int not null default 0,
-  acquisition_date date,
-  price numeric(12,2),
-  image_url varchar(300),
-  unique(user_id, name, brand)
+-- Productos
+CREATE TABLE IF NOT EXISTS products (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    category_id BIGINT NOT NULL,
+    name VARCHAR(160) NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 0,
+    min_stock INTEGER NOT NULL DEFAULT 0,
+    expiry_date DATE,
+    price NUMERIC(19,4),
+    purchase_location_id BIGINT,
+    brand VARCHAR(120),
+    image_url VARCHAR(300),
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    CONSTRAINT fk_product_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_product_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT,
+    CONSTRAINT fk_product_store FOREIGN KEY (purchase_location_id) REFERENCES stores(id) ON DELETE SET NULL
 );
-create index if not exists idx_products_user_cat on products(user_id, category_id);
 
--- MOVEMENTS
--- Si mapeas enum como STRING, usa varchar:
--- type varchar(20) check (type in ('PURCHASE','CONSUMPTION'))
-create table if not exists movements (
-  id uuid primary key,
-  product_id uuid not null references products(id) on delete cascade,
-  type varchar(20) not null check (type in ('PURCHASE','CONSUMPTION')),
-  quantity int not null,
-  unit_price numeric(12,2),
-  occurred_at timestamptz not null default now(),
-  note varchar(280)
+-- Movimientos de inventario
+CREATE TABLE IF NOT EXISTS movements (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    product_id BIGINT NOT NULL,
+    type VARCHAR(24) NOT NULL,
+    quantity INTEGER NOT NULL,
+    unit_price NUMERIC(19,4),
+    store_id BIGINT,
+    note VARCHAR(300),
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    CONSTRAINT fk_movement_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    CONSTRAINT fk_movement_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_movement_store FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE SET NULL
 );
-create index if not exists idx_movements_product_time on movements(product_id, occurred_at desc);
 
--- SHOPPING ITEMS
-create table if not exists shopping_items (
-  id uuid primary key,
-  product_id uuid not null references products(id) on delete cascade,
-  quantity int not null,
-  is_purchased boolean not null default false,
-  source varchar(20) not null check (source in ('MANUAL','AUTO_RULE')),
-  created_at timestamptz not null default now()
+-- Lista de compras
+CREATE TABLE IF NOT EXISTS shopping_items (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    product_id BIGINT NOT NULL,
+    quantity INTEGER NOT NULL,
+    is_purchased BOOLEAN NOT NULL DEFAULT FALSE,
+    purchased_at TIMESTAMPTZ,
+    source VARCHAR(24) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    CONSTRAINT fk_shopping_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_shopping_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
 );
-create index if not exists idx_shopping_active on shopping_items(product_id) where is_purchased = false;
 
--- ALERTS
-create table if not exists alerts (
-  id uuid primary key,
-  user_id uuid not null references users(id) on delete cascade,
-  product_id uuid references products(id) on delete cascade,
-  type varchar(20) not null check (type in ('LOW_STOCK','EXPIRY')),
-  message varchar(240) not null,
-  created_at timestamptz not null default now(),
-  resolved boolean not null default false
+-- Alertas
+CREATE TABLE IF NOT EXISTS alerts (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    product_id BIGINT,
+    type VARCHAR(24) NOT NULL,
+    message VARCHAR(300),
+    trigger_at TIMESTAMPTZ NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    resolved_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    CONSTRAINT fk_alert_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_alert_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
 );
-create index if not exists idx_alerts_user_created on alerts(user_id, created_at desc);
 
--- PRICE HISTORY
-create table if not exists price_history (
-  id uuid primary key,
-  product_id uuid not null references products(id) on delete cascade,
-  price numeric(12,2) not null,
-  registered_at timestamptz not null default now()
+-- Histórico de precios
+CREATE TABLE IF NOT EXISTS price_history (
+    id BIGSERIAL PRIMARY KEY,
+    product_id BIGINT NOT NULL,
+    store_id BIGINT,
+    unit_price NUMERIC(19,4) NOT NULL,
+    recorded_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    CONSTRAINT fk_ph_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ph_store FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE SET NULL
 );
-create index if not exists idx_price_product_time on price_history(product_id, registered_at desc);
 
--- PRODUCT RATING
-create table if not exists product_ratings (
-  id uuid primary key,
-  product_id uuid not null references products(id) on delete cascade,
-  score int not null check (score between 1 and 5),
-  comment varchar(300),
-  created_at timestamptz not null default now()
+-- Valoraciones de producto
+CREATE TABLE IF NOT EXISTS product_ratings (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    product_id BIGINT NOT NULL,
+    quality_score INTEGER NOT NULL,
+    notes VARCHAR(400),
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    CONSTRAINT fk_rating_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_rating_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
 );
-create index if not exists idx_rating_product_time on product_ratings(product_id, created_at desc);

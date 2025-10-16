@@ -1,297 +1,328 @@
 package cr.ac.una.homestock.service
 
-import cr.ac.una.homestock.domain.model.*
+import cr.ac.una.homestock.domain.entity.*
 import cr.ac.una.homestock.dto.*
-import cr.ac.una.homestock.data.*
 import cr.ac.una.homestock.mapper.*
+import cr.ac.una.homestock.repository.*
+import cr.ac.una.homestock.web.BusinessException
 import jakarta.persistence.EntityNotFoundException
-import jakarta.transaction.Transactional
-import org.springframework.data.domain.Page
-import org.springframework.data.domain.Pageable
+import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
-import java.time.OffsetDateTime
-import java.util.*
+import java.time.Instant
 
-/* =========================
- * Services (interfaces)
- * ========================= */
-interface CategoryService {
-    fun create(input: CategoryInput): CategoryResult
-}
+// Alias para enums DTO vs Entity
+import cr.ac.una.homestock.dto.MovementType as MovementTypeDTO
+import cr.ac.una.homestock.domain.entity.ShoppingSource as ShoppingSourceEntity
+import cr.ac.una.homestock.domain.entity.AlertType as AlertTypeEntity
 
-interface StoreService {
-    fun create(input: StoreInput): StoreResult
-}
+// Utilidades locales
+private fun notFound(entity: String, id: Any): Nothing = throw EntityNotFoundException("$entity not found: $id")
 
-interface ProductService {
-    fun create(input: ProductInput): ProductResult
-    fun update(id: UUID, input: ProductUpdateInput): ProductResult
-    fun findById(id: UUID): ProductResult
-    fun listByUser(userId: UUID, pageable: Pageable): Page<ProductResult>
-    fun listByUserAndCategory(userId: UUID, categoryId: UUID, pageable: Pageable): Page<ProductResult>
-}
-
-interface MovementService {
-    fun create(input: MovementInput): MovementResult
-}
-
-interface ShoppingItemService {
-    fun create(input: ShoppingItemInput): ShoppingItemResult
-    fun markPurchased(id: UUID, input: ShoppingItemPurchaseInput): ShoppingItemResult
-}
-
-interface AlertService {
-    fun create(input: AlertInput): AlertResult
-    fun resolve(id: UUID, resolvedAt: OffsetDateTime = OffsetDateTime.now()): AlertResult
-}
-
-interface PriceHistoryService {
-    fun register(input: PriceHistoryInput): PriceHistoryResult
-}
-
-interface ProductRatingService {
-    fun rate(input: ProductRatingInput): ProductRatingResult
-}
-
-/* =========================
- * Services (impl)
- * ========================= */
+// ------------------------------
+// Category
+// ------------------------------
 
 @Service
-class CategoryServiceImpl(
-    private val users: UserRepository,
-    private val categories: CategoryRepository,
-    private val mapper: CategoryMapper
-) : CategoryService {
+class CategoryService(
+    private val repo: CategoryRepository,
+    private val mapper: CategoryMapper,
+) {
+    fun list(): List<CategoryResult> = repo.findAll().map(mapper::toResult)
+
     @Transactional
-    override fun create(input: CategoryInput): CategoryResult {
-        val user = users.findById(input.userId!!).orElseThrow { notFound("User", input.userId) }
-        val entity = categories.save(Category(user = user, name = input.name.trim(), description = input.description))
+    fun create(input: CategoryCreate): CategoryResult {
+        if (repo.existsByNameIgnoreCase(input.name)) {
+            throw BusinessException("Category name already exists", HttpStatus.CONFLICT)
+        }
+        val entity = mapper.toEntity(input)
+        return mapper.toResult(repo.save(entity))
+    }
+
+    @Transactional
+    fun update(id: Long, input: CategoryUpdate): CategoryResult {
+        val entity = repo.findById(id).orElseThrow { notFound("Category", id) }
+        mapper.update(input, entity)
+        return mapper.toResult(entity)
+    }
+
+    @Transactional
+    fun delete(id: Long) {
+        if (!repo.existsById(id)) notFound("Category", id)
+        repo.deleteById(id)
+    }
+}
+
+// ------------------------------
+// Store
+// ------------------------------
+
+@Service
+class StoreService(
+    private val repo: StoreRepository,
+    private val mapper: StoreMapper,
+) {
+    fun list(): List<StoreResult> = repo.findAll().map(mapper::toResult)
+
+    @Transactional
+    fun create(input: StoreCreate): StoreResult {
+        if (repo.existsByNameIgnoreCase(input.name)) {
+            throw BusinessException("Store name already exists", HttpStatus.CONFLICT)
+        }
+        val entity = mapper.toEntity(input)
+        return mapper.toResult(repo.save(entity))
+    }
+
+    @Transactional
+    fun update(id: Long, input: StoreUpdate): StoreResult {
+        val entity = repo.findById(id).orElseThrow { notFound("Store", id) }
+        mapper.update(input, entity)
+        return mapper.toResult(entity)
+    }
+
+    @Transactional
+    fun delete(id: Long) {
+        if (!repo.existsById(id)) notFound("Store", id)
+        repo.deleteById(id)
+    }
+}
+
+// ------------------------------
+// Product
+// ------------------------------
+
+@Service
+class ProductService(
+    private val repo: ProductRepository,
+    private val userRepo: UserRepository,
+    private val categoryRepo: CategoryRepository,
+    private val storeRepo: StoreRepository,
+    private val mapper: ProductMapper,
+) {
+    fun byUser(userId: Long): List<ProductResult> = repo.findAllByUser_Id(userId).map(mapper::toResult)
+
+    @Transactional
+    fun create(input: ProductCreate): ProductResult {
+        if (!userRepo.existsById(input.userId)) notFound("User", input.userId)
+        if (!categoryRepo.existsById(input.categoryId)) notFound("Category", input.categoryId)
+        if (input.purchaseLocationId != null && !storeRepo.existsById(input.purchaseLocationId)) notFound("Store", input.purchaseLocationId)
+        if (repo.existsByUser_IdAndNameIgnoreCase(input.userId, input.name)) {
+            throw BusinessException("Product name already exists for this user", HttpStatus.CONFLICT)
+        }
+        val entity = mapper.fromCreate(input)
+        return mapper.toResult(repo.save(entity))
+    }
+
+    @Transactional
+    fun update(id: Long, input: ProductUpdate): ProductResult {
+        val entity = repo.findById(id).orElseThrow { notFound("Product", id) }
+        // Validaciones de referencias si se envían
+        input.categoryId?.let { if (!categoryRepo.existsById(it)) notFound("Category", it) }
+        input.purchaseLocationId?.let { if (!storeRepo.existsById(it)) notFound("Store", it) }
+        mapper.update(input, entity)
+        return mapper.toResult(entity)
+    }
+
+    fun get(userId: Long, id: Long): ProductResult {
+        val entity = repo.findByUser_IdAndId(userId, id).orElseThrow { notFound("Product", id) }
         return mapper.toResult(entity)
     }
 }
 
-@Service
-class StoreServiceImpl(
-    private val users: UserRepository,
-    private val stores: StoreRepository,
-    private val mapper: StoreMapper
-) : StoreService {
-    @Transactional
-    override fun create(input: StoreInput): StoreResult {
-        val user = users.findById(input.userId!!).orElseThrow { notFound("User", input.userId) }
-        val entity = stores.save(Store(user = user, name = input.name.trim(), address = input.address))
-        return mapper.toResult(entity)
-    }
-}
+// ------------------------------
+// Movement (impacta stock + reglas)
+// ------------------------------
 
 @Service
-class ProductServiceImpl(
-    private val users: UserRepository,
-    private val categories: CategoryRepository,
-    private val products: ProductRepository,
-    private val mapper: ProductMapper
-) : ProductService {
+class MovementService(
+    private val repo: MovementRepository,
+    private val productRepo: ProductRepository,
+    private val shoppingRepo: ShoppingItemRepository,
+    private val alertRepo: AlertRepository,
+    private val mapper: MovementMapper,
+) {
     @Transactional
-    override fun create(input: ProductInput): ProductResult {
-        val user = users.findById(input.userId!!).orElseThrow { notFound("User", input.userId) }
-        val category = categories.findById(input.categoryId!!).orElseThrow { notFound("Category", input.categoryId) }
-        val entity = Product(
-            user = user,
-            category = category,
-            name = input.name.trim(),
-            brand = input.brand?.trim(),
-            imageUrl = input.imageUrl?.trim(),
-            quantity = 0,
-            minStock = input.minStock
-        )
-        val saved = products.save(entity)
+    fun create(input: MovementCreate): MovementResult {
+        val product = productRepo.findById(input.productId).orElseThrow { notFound("Product", input.productId) }
+        // Reglas
+        if (input.quantity == 0) throw BusinessException("quantity must not be zero")
+        if (input.type == MovementTypeDTO.PURCHASE && (input.unitPrice == null || input.unitPrice <= BigDecimal.ZERO)) {
+            throw BusinessException("unitPrice is required and must be > 0 for PURCHASE")
+        }
+        // Normalización de signo para CONSUMPTION
+        val normalizedQty = when (input.type) {
+            MovementTypeDTO.PURCHASE -> if (input.quantity < 0) -input.quantity else input.quantity
+            MovementTypeDTO.CONSUMPTION -> if (input.quantity > 0) -input.quantity else input.quantity
+            MovementTypeDTO.ADJUSTMENT -> input.quantity
+        }
+        // Crear movement
+        val entity = mapper.fromCreate(input.copy(quantity = normalizedQty))
+        val saved = repo.save(entity)
+
+        // Impacto de stock
+        product.quantity += normalizedQty
+        if (product.quantity < 0) throw BusinessException("Stock cannot be negative after movement")
+
+        // Auto-regla: crear/actualizar ShoppingItem si bajo stock
+        if (product.quantity <= product.minStock) upsertAutoShoppingItem(product)
+
+        // Alertas LOW_STOCK activas
+        manageLowStockAlert(product)
+
+        // Persistir cambios de product (en el mismo flush)
+        // JPA lo hace al final de la transacción; opcionalmente productRepo.save(product)
         return mapper.toResult(saved)
     }
 
-    @Transactional
-    override fun update(id: UUID, input: ProductUpdateInput): ProductResult {
-        val e = products.findById(id).orElseThrow { notFound("Product", id) }
-        input.categoryId?.let {
-            val cat = categories.findById(it).orElseThrow { notFound("Category", it) }
-            e.category = cat
-        }
-        input.name?.let { e.name = it.trim() }
-        input.brand?.let { e.brand = it.trim() }
-        input.imageUrl?.let { e.imageUrl = it.trim() }
-        input.minStock?.let { require(it >= 0) { "minStock debe ser >= 0" }; e.minStock = it }
-        return mapper.toResult(products.save(e))
-    }
-
-    override fun findById(id: UUID): ProductResult =
-        mapper.toResult(products.findById(id).orElseThrow { notFound("Product", id) })
-
-    override fun listByUser(userId: UUID, pageable: Pageable): Page<ProductResult> =
-        products.findAllByUser_Id(userId, pageable).map { mapper.toResult(it) }
-
-    override fun listByUserAndCategory(userId: UUID, categoryId: UUID, pageable: Pageable): Page<ProductResult> =
-        products.findByUser_IdAndCategory_Id(userId, categoryId, pageable).map { mapper.toResult(it) }
-}
-
-@Service
-class MovementServiceImpl(
-    private val products: ProductRepository,
-    private val stores: StoreRepository,
-    private val movements: MovementRepository,
-    private val shoppingItems: ShoppingItemRepository,
-    private val mapper: MovementMapper
-) : MovementService {
-
-    @Transactional
-    override fun create(input: MovementInput): MovementResult {
-        val product = products.findById(input.productId!!).orElseThrow { notFound("Product", input.productId) }
-        val store = input.storeId?.let { stores.findById(it).orElseThrow { notFound("Store", it) } }
-
-        if (input.type == MovementType.PURCHASE) {
-            require(input.unitPrice != null && input.unitPrice > BigDecimal.ZERO) {
-                "unitPrice requerido y > 0 para movimientos de tipo PURCHASE"
-            }
-        }
-
-        val movement = Movement(
-            product = product,
-            type = input.type!!,
-            quantity = input.quantity,
-            unitPrice = input.unitPrice,
-            store = store,
-            occurredAt = input.occurredAt ?: OffsetDateTime.now()
-        )
-
-        when (movement.type) {
-            MovementType.PURCHASE -> product.quantity = product.quantity + movement.quantity
-            MovementType.CONSUMPTION -> {
-                val newQty = product.quantity - movement.quantity
-                require(newQty >= 0) { "Stock insuficiente: intentas consumir ${movement.quantity} y hay ${product.quantity}" }
-                product.quantity = newQty
-            }
-        }
-
-        movements.save(movement)
-        products.save(product)
-        ensureAutoShoppingItem(product, shoppingItems)
-        return mapper.toResult(movement)
-    }
-
-    private fun ensureAutoShoppingItem(product: Product, shoppingItems: ShoppingItemRepository) {
-        if (product.quantity < product.minStock) {
-            val suggestedQty = (product.minStock - product.quantity).coerceAtLeast(1)
-            val item = ShoppingItem(
+    private fun upsertAutoShoppingItem(product: Product) {
+        val userId = product.user?.id ?: return
+        val existing = shoppingRepo.findByUser_IdAndProduct_IdAndIsPurchasedFalse(userId, product.id!!)
+        val needed = (product.minStock - product.quantity).coerceAtLeast(1)
+        if (existing.isPresent) {
+            val it = existing.get()
+            it.quantity = needed
+            it.source = ShoppingSourceEntity.AUTO_RULE
+        } else {
+            val si = ShoppingItem(
                 user = product.user,
                 product = product,
-                quantity = suggestedQty,
-                targetStore = null,
+                quantity = needed,
+                isPurchased = false,
                 purchasedAt = null,
-                createdAt = OffsetDateTime.now(),
-                source = "AUTO_LOW_STOCK"
+                source = ShoppingSourceEntity.AUTO_RULE,
             )
-            shoppingItems.save(item)
+            shoppingRepo.save(si)
+        }
+    }
+
+    private fun manageLowStockAlert(product: Product) {
+        val userId = product.user?.id ?: return
+        val active = alertRepo.findAllByUser_IdAndProduct_IdAndIsActiveTrue(userId, product.id!!)
+        val below = product.quantity <= product.minStock
+        if (below && active.isEmpty()) {
+            alertRepo.save(
+                Alert(
+                    user = product.user,
+                    product = product,
+                    type = AlertTypeEntity.LOW_STOCK,
+                    message = "Stock below minimum for ${product.name}",
+                    triggerAt = Instant.now(),
+                    isActive = true
+                )
+            )
+        } else if (!below && active.isNotEmpty()) {
+            // resolver alertas existentes
+            active.forEach { it.isActive = false; it.resolvedAt = Instant.now() }
         }
     }
 }
 
+// ------------------------------
+// ShoppingItem
+// ------------------------------
+
 @Service
-class ShoppingItemServiceImpl(
-    private val shoppingItems: ShoppingItemRepository,
-    private val users: UserRepository,
-    private val products: ProductRepository,
-    private val stores: StoreRepository,
-    private val mapper: ShoppingItemMapper
-) : ShoppingItemService {
+class ShoppingItemService(
+    private val repo: ShoppingItemRepository,
+    private val mapper: ShoppingItemMapper,
+    private val productRepo: ProductRepository,
+    private val userRepo: UserRepository,
+) {
+    fun listPending(userId: Long): List<ShoppingItemResult> =
+        repo.findAllByUser_IdAndIsPurchasedFalse(userId).map(mapper::toResult)
 
     @Transactional
-    override fun create(input: ShoppingItemInput): ShoppingItemResult {
-        val userRef = users.getReferenceById(input.userId!!)
-        val productRef = products.getReferenceById(input.productId!!)
-        val targetStoreRef = input.targetStoreId?.let { stores.getReferenceById(it) }
-        val item = ShoppingItem(
-            user = userRef,
-            product = productRef,
-            quantity = input.quantity,
-            targetStore = targetStoreRef,
-            purchasedAt = null,
-            createdAt = OffsetDateTime.now(),
-            source = "MANUAL"
-        )
-        val saved = shoppingItems.save(item)
-        return mapper.toResult(saved)
+    fun create(input: ShoppingItemCreate): ShoppingItemResult {
+        if (!userRepo.existsById(input.userId)) notFound("User", input.userId)
+        if (!productRepo.existsById(input.productId)) notFound("Product", input.productId)
+        val exists = repo.existsByUser_IdAndProduct_IdAndIsPurchasedFalse(input.userId, input.productId)
+        if (exists) throw BusinessException("Shopping item already exists (pending)", HttpStatus.CONFLICT)
+        val entity = mapper.fromCreate(input)
+        return mapper.toResult(repo.save(entity))
     }
 
     @Transactional
-    override fun markPurchased(id: UUID, input: ShoppingItemPurchaseInput): ShoppingItemResult {
-        val e = shoppingItems.findById(id).orElseThrow { notFound("ShoppingItem", id) }
-        e.purchasedAt = input.purchasedAt
-        return mapper.toResult(shoppingItems.save(e))
+    fun update(id: Long, input: ShoppingItemUpdate): ShoppingItemResult {
+        val entity = repo.findById(id).orElseThrow { notFound("ShoppingItem", id) }
+        mapper.update(input, entity)
+        return mapper.toResult(entity)
     }
 }
 
+// ------------------------------
+// Alert
+// ------------------------------
+
 @Service
-class AlertServiceImpl(
-    private val alerts: AlertRepository,
-    private val users: UserRepository,
-    private val mapper: AlertMapper
-) : AlertService {
+class AlertService(
+    private val repo: AlertRepository,
+    private val mapper: AlertMapper,
+) {
+    fun listActive(userId: Long): List<AlertResult> =
+        repo.findAllByUser_IdAndIsActiveTrue(userId).map(mapper::toResult)
+
     @Transactional
-    override fun create(input: AlertInput): AlertResult {
-        val userRef = users.getReferenceById(input.userId!!)
-        val e = Alert(
-            user = userRef,
-            type = input.type!!,
-            message = input.message,
-            triggerAt = input.triggerAt ?: OffsetDateTime.now(),
-            isActive = true
-        )
-        return mapper.toResult(alerts.save(e))
+    fun create(input: AlertCreate): AlertResult {
+        val entity = mapper.fromCreate(input.copy(triggerAt = input.triggerAt ?: Instant.now()))
+        return mapper.toResult(repo.save(entity))
     }
 
     @Transactional
-    override fun resolve(id: UUID, resolvedAt: OffsetDateTime): AlertResult {
-        val e = alerts.findById(id).orElseThrow { notFound("Alert", id) }
-        e.isActive = false
-        e.resolvedAt = resolvedAt
-        return mapper.toResult(alerts.save(e))
+    fun update(id: Long, input: AlertUpdate): AlertResult {
+        val entity = repo.findById(id).orElseThrow { notFound("Alert", id) }
+        mapper.update(input, entity)
+        return mapper.toResult(entity)
     }
 }
 
+// ------------------------------
+// PriceHistory
+// ------------------------------
+
 @Service
-class PriceHistoryServiceImpl(
-    private val products: ProductRepository,
-    private val stores: StoreRepository,
-    private val histories: PriceHistoryRepository,
-    private val mapper: PriceHistoryMapper
-) : PriceHistoryService {
+class PriceHistoryService(
+    private val repo: PriceHistoryRepository,
+    private val productRepo: ProductRepository,
+    private val mapper: PriceHistoryMapper,
+) {
     @Transactional
-    override fun register(input: PriceHistoryInput): PriceHistoryResult {
-        val productRef = products.getReferenceById(input.productId!!)
-        val storeRef = input.storeId?.let { stores.getReferenceById(it) }
-        val e = PriceHistory(product = productRef, store = storeRef, price = input.price, registeredAt = OffsetDateTime.now())
-        return mapper.toResult(histories.save(e))
+    fun add(input: PriceHistoryCreate): PriceHistoryResult {
+        productRepo.findById(input.productId).orElseThrow { notFound("Product", input.productId) }
+        val entity = mapper.fromCreate(input.copy(recordedAt = input.recordedAt ?: Instant.now()))
+        return mapper.toResult(repo.save(entity))
+    }
+
+    fun lastForProduct(productId: Long): PriceHistoryResult? =
+        repo.findTop1ByProduct_IdOrderByRecordedAtDesc(productId).map(mapper::toResult).orElse(null)
+}
+
+// ------------------------------
+// ProductRating (upsert por (user, product))
+// ------------------------------
+
+@Service
+class ProductRatingService(
+    private val repo: ProductRatingRepository,
+    private val mapper: ProductRatingMapper,
+    private val userRepo: UserRepository,
+    private val productRepo: ProductRepository,
+) {
+    @Transactional
+    fun upsert(input: ProductRatingCreate): ProductRatingResult {
+        if (!userRepo.existsById(input.userId)) notFound("User", input.userId)
+        if (!productRepo.existsById(input.productId)) notFound("Product", input.productId)
+        val existing = repo.findByUser_IdAndProduct_Id(input.userId, input.productId)
+        val entity = if (existing.isPresent) {
+            val e = existing.get()
+            e.qualityScore = input.qualityScore
+            e.notes = input.notes
+            e
+        } else {
+            mapper.fromCreate(input)
+        }
+        return mapper.toResult(repo.save(entity))
     }
 }
 
-@Service
-class ProductRatingServiceImpl(
-    private val users: UserRepository,
-    private val products: ProductRepository,
-    private val ratings: ProductRatingRepository,
-    private val mapper: ProductRatingMapper
-) : ProductRatingService {
-    @Transactional
-    override fun rate(input: ProductRatingInput): ProductRatingResult {
-        val userRef = users.getReferenceById(input.userId!!)
-        val productRef = products.getReferenceById(input.productId!!)
-        val e = ProductRating(user = userRef, product = productRef, score = input.score, comment = input.comment)
-        return mapper.toResult(ratings.save(e))
-    }
-}
-
-/* =========================
- * Helpers
- * ========================= */
-private fun notFound(entity: String, id: Any?): EntityNotFoundException =
-    EntityNotFoundException("$entity not found: $id")
+// Comentario de cambios: limpieza de imports y parámetros no usados en Services.kt

@@ -15,80 +15,52 @@ description = "Backend API para la app HomeStock (inventario y consumo doméstic
 
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(17)
+		languageVersion.set(org.gradle.jvm.toolchain.JavaLanguageVersion.of(17))
 	}
 }
 
-configurations {
-	compileOnly {
-		extendsFrom(configurations.annotationProcessor.get())
-	}
-}
-
-repositories {
-	mavenCentral()
-}
+repositories { mavenCentral() }
 
 val mapstructVersion = "1.5.5.Final"
 
 dependencies {
-	// Spring Boot starters requeridos
+	// Spring Boot
 	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-validation")
-	implementation("org.springframework.boot:spring-boot-starter-actuator")
 
-	// Jackson Kotlin
+	// JSON Kotlin
 	implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
-	implementation("org.jetbrains.kotlin:kotlin-reflect")
 
-	// MapStruct (implementación + processor vía kapt)
+	// MapStruct (DTO <-> Entidad)
 	implementation("org.mapstruct:mapstruct:$mapstructVersion")
 	kapt("org.mapstruct:mapstruct-processor:$mapstructVersion")
 
-	// Base de datos PostgreSQL (runtime en entorno no-test)
+	// OpenAPI/Swagger UI
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0")
+
+	// Migraciones + Driver
+	implementation("org.flywaydb:flyway-core")
 	runtimeOnly("org.postgresql:postgresql")
 
-	// Dependencias de pruebas (para resolver anotaciones de Spring en test durante kapt)
+	// Tests
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
-	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
-	implementation("org.flywaydb:flyway-core")
 }
 
-kotlin {
-	compilerOptions {
-		freeCompilerArgs.addAll("-Xjsr305=strict")
+kapt { correctErrorTypes = true }
+
+// Kotlin compile settings
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+	kotlinOptions {
+		jvmTarget = "17"
+		freeCompilerArgs = listOf("-Xjsr305=strict")
 	}
 }
 
-allOpen {
-	annotation("jakarta.persistence.Entity")
-	annotation("jakarta.persistence.MappedSuperclass")
-	annotation("jakarta.persistence.Embeddable")
-}
+// Usa JUnit 5
+tasks.withType<Test> { useJUnitPlatform() }
 
-// Deshabilitar completamente las tareas de test
-tasks.withType<Test>().configureEach {
-    enabled = false
-}
-
-// Evitar compilar fuentes y procesar recursos del sourceSet de test
-sourceSets {
-	val test by getting {
-		java.setSrcDirs(emptyList<String>())
-		resources.setSrcDirs(emptyList<String>())
-	}
-}
-
-tasks.matching {
-    it.name in setOf(
-        "compileTestKotlin", "compileTestJava", "processTestResources", "testClasses",
-        // Deshabilitar KAPT para el source set de test
-        "kaptTestKotlin", "kaptGenerateStubsTestKotlin"
-    )
-}.configureEach { enabled = false }
-
-
+// Empaquetado JAR ejecutable para Render
 tasks.withType<org.springframework.boot.gradle.tasks.bundling.BootJar> {
-    archiveFileName.set("app.jar")
+	archiveFileName.set("app.jar")
 }

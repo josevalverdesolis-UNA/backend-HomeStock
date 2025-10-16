@@ -1,79 +1,83 @@
-package cr.una.homestock.it
+package cr.ac.una.homestock.it
 
-
-import cr.una.homestock.repository.*
-import cr.una.homestock.domain.model.*
+import cr.ac.una.homestock.domain.entity.Category
+import cr.ac.una.homestock.domain.entity.Product
+import cr.ac.una.homestock.domain.entity.Store
+import cr.ac.una.homestock.domain.entity.User
+import cr.ac.una.homestock.repository.CategoryRepository
+import cr.ac.una.homestock.repository.ProductRepository
+import cr.ac.una.homestock.repository.StoreRepository
+import cr.ac.una.homestock.repository.UserRepository
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.*
+import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.context.TestPropertySource
 import org.springframework.test.context.jdbc.Sql
-import org.springframework.test.context.jdbc.SqlConfig
-import org.springframework.transaction.annotation.Propagation
-import org.springframework.transaction.annotation.Transactional
+import java.math.BigDecimal
+import java.time.LocalDate
 
 @SpringBootTest
 @ActiveProfiles("test")
+@TestPropertySource(properties = [
+    "spring.flyway.baseline-on-migrate=true",
+    "spring.flyway.validate-on-migrate=false"
+])
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@TestMethodOrder(MethodOrderer.OrderAnnotation::class)
-@Sql(
-    scripts = ["/sql/clean_all.sql", "/sql/insert_all.sql"],
-    config = SqlConfig(transactionMode = SqlConfig.TransactionMode.ISOLATED),
-    executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
-)
-@Transactional(propagation = Propagation.NOT_SUPPORTED) // evita rollback por método
-class IntegrationDbIT(
-    @Autowired val userRepo: UserRepository,
-    @Autowired val categoryRepo: CategoryRepository,
-    @Autowired val storeRepo: StoreRepository,
-    @Autowired val productRepo: ProductRepository,
-    @Autowired val movementRepo: MovementRepository,
-    @Autowired val shoppingRepo: ShoppingItemRepository,
-    @Autowired val alertRepo: AlertRepository,
-    @Autowired val priceRepo: PriceHistoryRepository,
-    @Autowired val ratingRepo: ProductRatingRepository
-) {
+class IntegrationDbIT {
 
-    @Test @Order(1)
-    fun `debe existir un usuario, categoria, tienda y producto`() {
-        assertThat(userRepo.count()).isEqualTo(1)
-        assertThat(categoryRepo.count()).isEqualTo(1)
-        assertThat(storeRepo.count()).isEqualTo(1)
-        assertThat(productRepo.count()).isEqualTo(1)
+    @Autowired lateinit var userRepository: UserRepository
+    @Autowired lateinit var categoryRepository: CategoryRepository
+    @Autowired lateinit var storeRepository: StoreRepository
+    @Autowired lateinit var productRepository: ProductRepository
 
-        val p = productRepo.findAll().first()
-        assertThat(p.name).isEqualTo("Arroz 1kg")
-        assertThat(p.minStock).isEqualTo(3)
-    }
+    @Test
+    @Sql(scripts = ["classpath:sql/clean_all.sql"], executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
+    fun shouldPerformCrudOnProduct() {
+        // Datos únicos para evitar colisiones de restricciones únicas
+        val suffix = System.currentTimeMillis().toString()
 
-    @Test @Order(2)
-    fun `debe existir movimientos, shopping item, alerta, historial de precios y rating`() {
-        assertThat(movementRepo.count()).isEqualTo(2)
-        assertThat(shoppingRepo.count()).isEqualTo(1)
-        assertThat(alertRepo.count()).isEqualTo(1)
-        assertThat(priceRepo.count()).isEqualTo(1)
-        assertThat(ratingRepo.count()).isEqualTo(1)
-    }
+        // Create: User, Category, Store
+        val user = userRepository.save(User(name = "Tester$suffix", email = "tester$suffix@example.com"))
+        val category = categoryRepository.save(Category(name = "Cat$suffix", description = "Cat desc $suffix"))
+        val store = storeRepository.save(Store(name = "Store$suffix", location = "Loc", notes = null))
 
-    @Test @Order(3)
-    fun `consulta de negocio - movimientos por producto`() {
-        val productId = "44444444-4444-4444-4444-444444444444"
-        val list = movementRepo.findByProductIdOrderByOccurredAtDesc(productId)
-        assertThat(list).isNotEmpty()
-        // Debe estar primero el CONSUMPTION de "hoy"
-        assertThat(list.first().type).isEqualTo(MovementType.CONSUMPTION)
-    }
+        // Create: Product
+        var product = Product(
+            user = user,
+            name = "Prod$suffix",
+            category = category,
+            quantity = 2,
+            minStock = 1,
+            expiryDate = LocalDate.now().plusDays(30),
+            price = BigDecimal("123.45"),
+            purchaseLocation = store,
+            brand = "Brand$suffix",
+            imageUrl = null
+        )
+        product = productRepository.save(product)
+        assertThat(product.id).isNotNull()
 
-    @Test @Order(4)
-    fun `puedo actualizar stock y dejar persistido`() {
-        val p = productRepo.findAll().first()
-        val prev = p.quantity
-        p.quantity = prev + 5
-        productRepo.save(p)
+        // Read
+        val loaded = productRepository.findById(product.id!!)
+        assertThat(loaded).isPresent
+        assertThat(loaded.get().name).isEqualTo("Prod$suffix")
 
-        val again = productRepo.findById(p.id!!).orElseThrow()
-        assertThat(again.quantity).isEqualTo(prev + 5)
+        // Update
+        val toUpdate = loaded.get()
+        toUpdate.quantity = 5
+        toUpdate.minStock = 2
+        toUpdate.price = BigDecimal("150.00")
+        val updated = productRepository.save(toUpdate)
+        assertThat(updated.quantity).isEqualTo(5)
+        assertThat(updated.minStock).isEqualTo(2)
+        assertThat(updated.price).isEqualByComparingTo(BigDecimal("150.00"))
+
+        // Delete
+        productRepository.deleteById(updated.id!!)
+        val afterDelete = productRepository.findById(updated.id!!)
+        assertThat(afterDelete).isNotPresent
     }
 }

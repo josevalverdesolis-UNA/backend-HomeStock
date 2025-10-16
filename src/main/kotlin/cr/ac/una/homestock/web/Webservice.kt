@@ -1,57 +1,153 @@
 package cr.ac.una.homestock.web
 
 import cr.ac.una.homestock.dto.*
-import cr.ac.una.homestock.service.MovementService
-import cr.ac.una.homestock.service.ProductService
+import cr.ac.una.homestock.service.*
 import jakarta.validation.Valid
-import org.springframework.data.domain.Page
-import org.springframework.data.domain.Pageable
-import org.springframework.data.web.PageableDefault
+import org.springframework.http.HttpStatus
+import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.*
-import java.util.*
 
-/* =========================
-   PRODUCT CONTROLLER
-   ========================= */
+/**
+ * Controladores REST (v1) alineados con DTOs/Servicios.
+ * Rutas base: /api/v1
+ */
 
+@Validated
 @RestController
-@RequestMapping("/v1/products")
-class ProductController(
-    private val productService: ProductService
+@RequestMapping("/api/v1/categories")
+class CategoryController(
+    private val service: CategoryService
 ) {
-
     @GetMapping
-    fun list(
-        @RequestParam userId: String,
-        @RequestParam(required = false) categoryId: String?,
-        @PageableDefault(page = 0, size = 20, sort = ["name"]) pageable: Pageable
-    ): Page<ProductResult> =
-        if (categoryId.isNullOrBlank())
-            productService.listByUser(UUID.fromString(userId), pageable)
-        else
-            productService.listByUserAndCategory(UUID.fromString(userId), UUID.fromString(categoryId), pageable)
+    fun list(): List<CategoryResult> = service.list()
 
     @PostMapping
-    fun create(@Valid @RequestBody input: ProductInput): ProductResult =
-        productService.create(input)
+    @ResponseStatus(HttpStatus.CREATED)
+    fun create(@Valid @RequestBody body: CategoryCreate): CategoryResult = service.create(body)
 
     @PatchMapping("/{id}")
-    fun update(
-        @PathVariable id: String,
-        @Valid @RequestBody input: ProductUpdateInput
-    ): ProductResult = productService.update(UUID.fromString(id), input)
+    fun update(@PathVariable id: Long, @Valid @RequestBody body: CategoryUpdate): CategoryResult =
+        service.update(id, body)
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun delete(@PathVariable id: Long) = service.delete(id)
 }
 
-/* =========================
-   MOVEMENT CONTROLLER
-   ========================= */
-
+@Validated
 @RestController
-@RequestMapping("/v1/movements")
+@RequestMapping("/api/v1/stores")
+class StoreController(
+    private val service: StoreService
+) {
+    @GetMapping
+    fun list(): List<StoreResult> = service.list()
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    fun create(@Valid @RequestBody body: StoreCreate): StoreResult = service.create(body)
+
+    @PatchMapping("/{id}")
+    fun update(@PathVariable id: Long, @Valid @RequestBody body: StoreUpdate): StoreResult =
+        service.update(id, body)
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun delete(@PathVariable id: Long) = service.delete(id)
+}
+
+@Validated
+@RestController
+@RequestMapping("/api/v1")
+class ProductController(
+    private val service: ProductService
+) {
+    @GetMapping("/users/{userId}/products")
+    fun byUser(@PathVariable userId: Long): List<ProductResult> = service.byUser(userId)
+
+    @GetMapping("/users/{userId}/products/{id}")
+    fun get(@PathVariable userId: Long, @PathVariable id: Long): ProductResult = service.get(userId, id)
+
+    @PostMapping("/products")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun create(@Valid @RequestBody body: ProductCreate): ProductResult = service.create(body)
+
+    @PatchMapping("/products/{id}")
+    fun update(@PathVariable id: Long, @Valid @RequestBody body: ProductUpdate): ProductResult =
+        service.update(id, body)
+}
+
+@Validated
+@RestController
+@RequestMapping("/api/v1/movements")
 class MovementController(
-    private val movementService: MovementService
+    private val service: MovementService
 ) {
     @PostMapping
-    fun create(@Valid @RequestBody input: MovementInput): MovementResult =
-        movementService.create(input)
+    @ResponseStatus(HttpStatus.CREATED)
+    fun create(@Valid @RequestBody body: MovementCreate): MovementResult = service.create(body)
 }
+
+@Validated
+@RestController
+@RequestMapping("/api/v1")
+class ShoppingItemController(
+    private val service: ShoppingItemService
+) {
+    @GetMapping("/users/{userId}/shopping-items")
+    fun listPending(@PathVariable userId: Long): List<ShoppingItemResult> = service.listPending(userId)
+
+    @PostMapping("/shopping-items")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun create(@Valid @RequestBody body: ShoppingItemCreate): ShoppingItemResult = service.create(body)
+
+    @PatchMapping("/shopping-items/{id}")
+    fun update(@PathVariable id: Long, @Valid @RequestBody body: ShoppingItemUpdate): ShoppingItemResult =
+        service.update(id, body)
+}
+
+@Validated
+@RestController
+@RequestMapping("/api/v1")
+class AlertController(
+    private val service: AlertService
+) {
+    @GetMapping("/users/{userId}/alerts/active")
+    fun listActive(@PathVariable userId: Long): List<AlertResult> = service.listActive(userId)
+
+    @PostMapping("/alerts")
+    @ResponseStatus(HttpStatus.CREATED)
+    fun create(@Valid @RequestBody body: AlertCreate): AlertResult = service.create(body)
+
+    @PatchMapping("/alerts/{id}")
+    fun update(@PathVariable id: Long, @Valid @RequestBody body: AlertUpdate): AlertResult = service.update(id, body)
+}
+
+@Validated
+@RestController
+@RequestMapping("/api/v1/price-history")
+class PriceHistoryController(
+    private val service: PriceHistoryService
+) {
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    fun add(@Valid @RequestBody body: PriceHistoryCreate): PriceHistoryResult = service.add(body)
+
+    @GetMapping("/products/{productId}/last")
+    fun lastForProduct(@PathVariable productId: Long): PriceHistoryResult? = service.lastForProduct(productId)
+}
+
+@Validated
+@RestController
+@RequestMapping("/api/v1/ratings")
+class ProductRatingController(
+    private val service: ProductRatingService
+) {
+    /**
+     * Upsert idempotente por (userId, productId).
+     */
+    @PutMapping
+    fun upsert(@Valid @RequestBody body: ProductRatingCreate): ProductRatingResult = service.upsert(body)
+}
+
+// Comentario de cambios: creado/actualizado archivo -> Webservice.kt

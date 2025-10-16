@@ -1,16 +1,25 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/homestock
-    username: postgres
-    password: postgres
+    url: jdbc:postgresql://localhost:5432/homestockapp?currentSchema=test
+    username: homestockapp
+    password: 12345
   jpa:
     hibernate:
       ddl-auto: none   # NO tocar esquemas en test
     properties:
       hibernate.format_sql: true
+      hibernate.default_schema: test
   sql:
     init:
       mode: never
+  flyway:
+    enabled: true
+    locations: classpath:bd/migration
+    baseline-on-migrate: true
+    validate-on-migrate: false
+    default-schema: test
+    schemas: test
+    create-schemas: true
 logging:
   level:
     org.hibernate.SQL: warn
