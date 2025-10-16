@@ -237,6 +237,7 @@ interface AlertMapper {
         Mapping(target = "user", source = "userId", qualifiedByName = ["userFromId"]),
         Mapping(target = "product", source = "productId", qualifiedByName = ["productFromId"]),
         Mapping(target = "active", source = "active"),
+        Mapping(target = "resolvedAt", ignore = true),
         Mapping(target = "createdAt", ignore = true),
         Mapping(target = "updatedAt", ignore = true)
     )
