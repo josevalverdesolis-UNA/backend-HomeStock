@@ -249,6 +249,7 @@ interface AlertMapper {
         Mapping(target = "user", ignore = true),
         Mapping(target = "product", ignore = true),
         Mapping(target = "type", ignore = true),
+        Mapping(target = "resolvedAt", ignore = true),
         Mapping(target = "createdAt", ignore = true),
         Mapping(target = "updatedAt", ignore = true)
     )

@@ -289,7 +289,12 @@ class AlertService(
     @Transactional
     fun update(id: Long, input: AlertUpdate): AlertResult {
         val entity = repo.findById(id).orElseThrow { notFound("Alert", id) }
+        val wasActive = entity.active
         mapper.update(input, entity)
+        // Si se cambió de activo a inactivo, resolvemos ahora
+        if (wasActive && entity.active == false) {
+            entity.resolvedAt = Instant.now()
+        }
         return mapper.toResult(entity)
     }
 

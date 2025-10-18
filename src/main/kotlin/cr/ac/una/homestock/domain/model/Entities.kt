@@ -67,6 +67,13 @@ open class User(
 
     @Column(nullable = false, unique = true)
     open var email: String = "",
+
+    // Nuevos campos para autenticación
+    @Column(name = "password_hash", nullable = false)
+    open var passwordHash: String = "",
+
+    @Column(nullable = false)
+    open var role: String = "USER",
 ) : Auditable()
 
 // ------------------------------
