@@ -171,6 +171,9 @@ open class Product(
 
     @Column(name = "image_url")
     open var imageUrl: String? = null,
+
+    @Column(name = "barcode")
+    open var barcode: String? = null,
 ) : Auditable()
 
 // ------------------------------

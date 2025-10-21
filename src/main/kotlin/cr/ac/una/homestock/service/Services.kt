@@ -9,6 +9,7 @@ import jakarta.persistence.EntityNotFoundException
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.data.domain.PageRequest
 import java.math.BigDecimal
 import java.time.Instant
 import kotlin.math.abs
@@ -116,6 +117,35 @@ class ProductService(
     private val mapper: ProductMapper,
 ) {
     fun byUser(userId: Long): List<ProductResult> = repo.findAllByUser_Id(userId).map(mapper::toResult)
+
+    fun search(
+        userId: Long,
+        q: String?,
+        categoryId: Long?,
+        minStockOnly: Boolean,
+        page: Int,
+        size: Int
+    ): PageResponse<ProductResult> {
+        val p = page.coerceAtLeast(0)
+        val s = size.coerceIn(1, 200)
+        val pageable = PageRequest.of(p, s)
+        val pageRes = repo.search(userId, q?.takeIf { it.isNotBlank() }, categoryId, minStockOnly, pageable)
+        return PageResponse(
+            content = pageRes.content.map(mapper::toResult),
+            page = pageRes.number,
+            size = pageRes.size,
+            totalElements = pageRes.totalElements,
+            totalPages = pageRes.totalPages
+        )
+    }
+
+    fun getById(id: Long): ProductResult {
+        val entity = repo.findById(id).orElseThrow { notFound("Product", id) }
+        return mapper.toResult(entity)
+    }
+
+    fun findByBarcode(userId: Long, code: String): ProductResult? =
+        repo.findFirstByUser_IdAndBarcode(userId, code).map(mapper::toResult).orElse(null)
 
     @Transactional
     fun create(input: ProductCreate): ProductResult {

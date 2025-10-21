@@ -3,7 +3,11 @@
 package cr.ac.una.homestock.repository
 
 import cr.ac.una.homestock.domain.entity.*
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import org.springframework.stereotype.Repository
 import java.time.Instant
 import java.util.*
@@ -51,6 +55,27 @@ interface ProductRepository : JpaRepository<Product, Long> {
 
     fun existsByUser_IdAndNameIgnoreCase(userId: Long, name: String): Boolean
     fun findAllByUser_IdAndNameContainingIgnoreCase(userId: Long, name: String): List<Product>
+
+    @Query(
+        """
+        SELECT p FROM Product p
+        WHERE p.user.id = :userId
+          AND (:q IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :q, '%'))
+               OR LOWER(COALESCE(p.brand, '')) LIKE LOWER(CONCAT('%', :q, '%'))
+               OR LOWER(COALESCE(p.barcode, '')) LIKE LOWER(CONCAT('%', :q, '%')))
+          AND (:categoryId IS NULL OR p.category.id = :categoryId)
+          AND (:minStockOnly = FALSE OR p.quantity <= p.minStock)
+        """
+    )
+    fun search(
+        @Param("userId") userId: Long,
+        @Param("q") q: String?,
+        @Param("categoryId") categoryId: Long?,
+        @Param("minStockOnly") minStockOnly: Boolean,
+        pageable: Pageable
+    ): Page<Product>
+
+    fun findFirstByUser_IdAndBarcode(userId: Long, barcode: String): Optional<Product>
 }
 
 // ------------------------------

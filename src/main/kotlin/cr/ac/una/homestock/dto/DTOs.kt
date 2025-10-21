@@ -127,6 +127,7 @@ data class ProductCreate(
     val brand: String? = null,
     @field:Pattern(regexp = "^https?://.*", message = "imageUrl debe ser http(s)")
     val imageUrl: String? = null,
+    val barcode: String? = null,
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -145,6 +146,7 @@ data class ProductUpdate(
     val brand: String? = null,
     @field:Pattern(regexp = "^https?://.*", message = "imageUrl debe ser http(s)")
     val imageUrl: String? = null,
+    val barcode: String? = null,
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -161,6 +163,7 @@ data class ProductResult(
     val purchaseLocationId: Long?,
     val brand: String?,
     val imageUrl: String?,
+    val barcode: String?,
     val createdAt: Instant,
     val updatedAt: Instant,
 )
