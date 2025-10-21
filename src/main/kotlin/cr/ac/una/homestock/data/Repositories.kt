@@ -104,4 +104,14 @@ interface ProductRatingRepository : JpaRepository<ProductRating, Long> {
     fun findAllByProduct_Id(productId: Long): List<ProductRating>
 }
 
+// ------------------------------
+// RefreshToken
+// ------------------------------
+
+@Repository
+interface RefreshTokenRepository : JpaRepository<RefreshToken, Long> {
+    fun findByTokenHash(tokenHash: String): Optional<RefreshToken>
+    fun findAllByUser_IdAndRevokedAtIsNull(userId: Long): List<RefreshToken>
+}
+
 // Comentario de cambios: Actualizados métodos derivados para purchased/active

@@ -166,6 +166,11 @@ class MovementService(
     @Transactional
     fun create(input: MovementCreate): MovementResult {
         val product = productRepo.findById(input.productId).orElseThrow { notFound("Product", input.productId) }
+        // Coherencia: movement debe ser del mismo usuario que el dueño del producto
+        val productUserId = product.user?.id ?: throw IllegalStateException("Product without owner user")
+        if (productUserId != input.userId) {
+            throw BusinessException("Movement userId does not match product owner", HttpStatus.FORBIDDEN)
+        }
         // Reglas
         if (input.quantity == 0) throw BusinessException("quantity must not be zero")
         if (input.type == MovementTypeDTO.PURCHASE && (input.unitPrice == null || input.unitPrice <= BigDecimal.ZERO)) {
@@ -180,6 +185,10 @@ class MovementService(
         }
         // Crear movement con occurredAt por defecto si no viene
         val entity = mapper.fromCreate(input.copy(quantity = absQty, occurredAt = input.occurredAt ?: Instant.now()))
+        // Forzar coherencia de referencias
+        entity.user = product.user
+        entity.product = product
+
         val saved = repo.save(entity)
 
         // Impacto de stock
@@ -255,7 +264,10 @@ class ShoppingItemService(
     @Transactional
     fun create(input: ShoppingItemCreate): ShoppingItemResult {
         if (!userRepo.existsById(input.userId)) notFound("User", input.userId)
-        if (!productRepo.existsById(input.productId)) notFound("Product", input.productId)
+        val product = productRepo.findById(input.productId).orElseThrow { notFound("Product", input.productId) }
+        // Coherencia: el producto debe pertenecer al userId de la solicitud
+        val ownerId = product.user?.id ?: throw IllegalStateException("Product without owner user")
+        if (ownerId != input.userId) throw BusinessException("Product does not belong to user", HttpStatus.FORBIDDEN)
         val exists = repo.existsByUser_IdAndProduct_IdAndPurchasedFalse(input.userId, input.productId)
         if (exists) throw BusinessException("Shopping item already exists (pending)", HttpStatus.CONFLICT)
         val entity = mapper.fromCreate(input)
@@ -278,12 +290,19 @@ class ShoppingItemService(
 class AlertService(
     private val repo: AlertRepository,
     private val mapper: AlertMapper,
+    private val productRepo: ProductRepository,
 ) {
     fun listActive(userId: Long): List<AlertResult> =
         repo.findAllByUser_IdAndActiveTrue(userId).map(mapper::toResult)
 
     @Transactional
     fun create(input: AlertCreate): AlertResult {
+        // Si trae productId, validar que ese producto pertenezca al userId
+        input.productId?.let { pid ->
+            val product = productRepo.findById(pid).orElseThrow { notFound("Product", pid) }
+            val ownerId = product.user?.id ?: throw IllegalStateException("Product without owner user")
+            if (ownerId != input.userId) throw BusinessException("Product does not belong to user", HttpStatus.FORBIDDEN)
+        }
         val entity = mapper.fromCreate(input.copy(triggerAt = input.triggerAt ?: Instant.now()))
         return mapper.toResult(repo.save(entity))
     }

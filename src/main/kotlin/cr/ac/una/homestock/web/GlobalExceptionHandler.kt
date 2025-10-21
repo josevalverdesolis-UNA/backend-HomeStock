@@ -1,3 +1,4 @@
+@file:Suppress("unused")
 
 package cr.ac.una.homestock.web
 
@@ -19,7 +20,7 @@ class LegacyExceptionHandler {
 
     @ExceptionHandler(DataIntegrityViolationException::class)
     fun handleConflict(ex: DataIntegrityViolationException): ResponseEntity<Map<String, String>> =
-        ResponseEntity.status(HttpStatus.CONFLICT).body(mapOf("error" to (ex.mostSpecificCause?.message ?: "conflict")))
+        ResponseEntity.status(HttpStatus.CONFLICT).body(mapOf("error" to (ex.mostSpecificCause.message ?: "conflict")))
 
     @ExceptionHandler(IllegalArgumentException::class)
     fun handleUnauthorized(ex: IllegalArgumentException): ResponseEntity<Map<String, String>> =

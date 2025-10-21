@@ -1,3 +1,4 @@
+@file:Suppress("unused")
 package cr.ac.una.homestock.security
 
 import org.springframework.context.annotation.Bean
@@ -11,28 +12,32 @@ import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
+@Suppress("unused")
 class SecurityConfig(
     private val jwtAuthFilter: JwtAuthFilter
 ) {
     @Bean
+    @Suppress("unused")
     fun filterChain(http: HttpSecurity): SecurityFilterChain {
         http
             .csrf { it.disable() }
             .cors { } // usa el bean corsConfigurationSource
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
-                // Swagger/actuator opcional:
+                // Recursos públicos
                 it.requestMatchers(
+                    "/", "/error", "/favicon.ico",
                     "/swagger-ui/**", "/v3/api-docs/**", "/v1/api-docs/**", "/actuator/health"
                 ).permitAll()
 
-                // Auth público
-                it.requestMatchers("/api/v1/auth/**").permitAll()
+                // Auth público específico
+                it.requestMatchers(
+                    "/api/v1/auth/register",
+                    "/api/v1/auth/login",
+                    "/api/v1/auth/refresh"
+                ).permitAll()
 
-                // Otros GET públicos si así lo deseas (opcional)
-                // it.requestMatchers(HttpMethod.GET, "/api/v1/categories/**").permitAll()
-
-                // El resto requiere JWT
+                // Todo lo demás requiere JWT
                 it.anyRequest().authenticated()
             }
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter::class.java)
@@ -41,6 +46,7 @@ class SecurityConfig(
     }
 
     @Bean
+    @Suppress("unused")
     fun corsConfigurationSource(): CorsConfigurationSource {
         val cfg = CorsConfiguration()
         cfg.allowedOriginPatterns = listOf("*") // Android no requiere CORS, pero si expones web admin cambia esto

@@ -10,6 +10,7 @@ import java.time.LocalDate
 import kotlin.reflect.KClass
 import cr.ac.una.homestock.validation.NotZeroValidator
 import jakarta.validation.Constraint
+import jakarta.validation.Payload
 
 /**
  * DTOs alineados con el ER de HomeStock.
@@ -340,7 +341,7 @@ data class ProductRatingResult(
 annotation class NotZero(
     val message: String = "must not be zero",
     val groups: Array<KClass<*>> = emptyArray(),
-    val payload: Array<KClass<out Any>> = emptyArray()
+    val payload: Array<KClass<out Payload>> = emptyArray()
 )
 
 // Nota: La validación real de @NotZero para Int se implementa con un ConstraintValidator en el paquete validation.

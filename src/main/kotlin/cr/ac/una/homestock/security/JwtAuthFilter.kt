@@ -24,16 +24,19 @@ class JwtAuthFilter(
             val token = header.removePrefix("Bearer ").trim()
             try {
                 val claims = jwt.parseAndValidate(token)
-                val userId = claims.subject // id como String
-                val role = claims.get("role", String::class.java)?.uppercase() ?: "USER"
-                val auth = UsernamePasswordAuthenticationToken(
-                    userId,
-                    null,
-                    listOf(SimpleGrantedAuthority("ROLE_$role"))
-                )
-                SecurityContextHolder.getContext().authentication = auth
+                val typ = claims["typ"] as? String
+                if (typ == "access") {
+                    val userId = claims.subject // id como String
+                    val role = claims.get("role", String::class.java)?.uppercase() ?: "USER"
+                    val auth = UsernamePasswordAuthenticationToken(
+                        userId,
+                        null,
+                        listOf(SimpleGrantedAuthority("ROLE_$role"))
+                    )
+                    SecurityContextHolder.getContext().authentication = auth
+                }
             } catch (_: Exception) {
-                // Token inválido/expirado: no autentica; seguirá como anónimo.
+                // Token inválido/expirado: seguirá como anónimo
             }
         }
         chain.doFilter(request, response)

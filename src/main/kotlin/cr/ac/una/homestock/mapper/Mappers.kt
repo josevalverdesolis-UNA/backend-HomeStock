@@ -169,7 +169,7 @@ interface MovementMapper {
 
     @Mappings(
         Mapping(target = "id", ignore = true),
-        Mapping(target = "user", source = "userId", qualifiedByName = ["userFromId"]),
+        Mapping(target = "user", ignore = true), // Se fija en servicio a partir del producto
         Mapping(target = "product", source = "productId", qualifiedByName = ["productFromId"]),
         Mapping(target = "store", source = "storeId", qualifiedByName = ["storeFromId"]),
         Mapping(target = "occurredAt", source = "occurredAt"),
@@ -309,4 +309,4 @@ interface ProductRatingMapper {
     fun toResult(entity: ProductRating): ProductRatingResult
 }
 
-// Comentario de cambios: Booleans estandarizados (purchased/active); updates ignoran id/relaciones cuando procede; política ERROR aplicada
+// Comentario de cambios: MovementMapper ya no asigna user desde DTO; el servicio asegura coherencia.

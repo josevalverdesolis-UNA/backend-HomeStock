@@ -370,3 +370,36 @@ open class ProductRating(
     @Column
     open var notes: String? = null,
 ) : Auditable()
+
+// ------------------------------
+// RefreshToken (persistencia de refresh tokens rotables)
+// ------------------------------
+
+@Entity
+@Table(
+    name = "refresh_tokens",
+    indexes = [
+        Index(name = "ix_rt_user", columnList = "user_id"),
+        Index(name = "ix_rt_expires", columnList = "expires_at"),
+        Index(name = "ix_rt_revoked", columnList = "revoked_at")
+    ]
+)
+open class RefreshToken(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    open var id: Long? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "user_id", nullable = false)
+    open var user: User? = null,
+
+    @Column(name = "token_hash", nullable = false)
+    open var tokenHash: String = "",
+
+    @Column(name = "expires_at", nullable = false)
+    open var expiresAt: Instant = Instant.now().plusSeconds(1209600),
+
+    @Column(name = "revoked_at")
+    open var revokedAt: Instant? = null,
+
+    @Column(name = "created_at", nullable = false)
+    open var createdAt: Instant = Instant.now(),
+)
