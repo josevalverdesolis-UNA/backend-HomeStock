@@ -541,4 +541,185 @@ class ShoppingListService(
     }
 }
 
+// ------------------------------
+// Inventory
+// ------------------------------
+
+@Service
+class InventoryService(
+    private val productRepo: ProductRepository,
+    private val movementRepo: MovementRepository
+) {
+    fun listInventory(locationId: Long?, status: String?, page: Int, size: Int): PageResponse<ProductResult> {
+        // Implementar paginación y filtrado por ubicación/estado
+        // Ejemplo básico, ajustar según modelo
+        val products = productRepo.findAll() // Filtrar por locationId y status si corresponde
+        val filtered = products.filter {
+            (locationId == null || it.purchaseLocation?.id == locationId) &&
+            (status == null || status == "active") // Ajustar lógica de estado
+        }
+        val paged = filtered.drop(page * size).take(size)
+        return PageResponse(
+            content = paged.map { /* mapear a ProductResult */ ProductResult(
+                id = it.id!!,
+                userId = it.user?.id!!,
+                name = it.name,
+                categoryId = it.category?.id!!,
+                quantity = it.quantity,
+                minStock = it.minStock,
+                acquisitionDate = it.acquisitionDate,
+                expiryDate = it.expiryDate,
+                price = it.price,
+                purchaseLocationId = it.purchaseLocation?.id,
+                brand = it.brand,
+                imageUrl = it.imageUrl,
+                barcode = it.barcode,
+                createdAt = it.createdAt,
+                updatedAt = it.updatedAt
+            ) },
+            page = page,
+            size = size,
+            totalElements = filtered.size.toLong(),
+            totalPages = (filtered.size + size - 1) / size
+        )
+    }
+
+    fun addStock(body: ProductCreate): ProductResult {
+        // Alta manual de stock
+        val product = Product(
+            user = User().apply { id = body.userId },
+            name = body.name,
+            category = Category().apply { id = body.categoryId },
+            quantity = body.quantity,
+            minStock = body.minStock,
+            acquisitionDate = body.acquisitionDate,
+            expiryDate = body.expiryDate,
+            price = body.price,
+            purchaseLocation = body.purchaseLocationId?.let { Store().apply { id = it } },
+            brand = body.brand,
+            imageUrl = body.imageUrl,
+            barcode = body.barcode
+        )
+        val saved = productRepo.save(product)
+        return ProductResult(
+            id = saved.id!!,
+            userId = saved.user?.id!!,
+            name = saved.name,
+            categoryId = saved.category?.id!!,
+            quantity = saved.quantity,
+            minStock = saved.minStock,
+            acquisitionDate = saved.acquisitionDate,
+            expiryDate = saved.expiryDate,
+            price = saved.price,
+            purchaseLocationId = saved.purchaseLocation?.id,
+            brand = saved.brand,
+            imageUrl = saved.imageUrl,
+            barcode = saved.barcode,
+            createdAt = saved.createdAt,
+            updatedAt = saved.updatedAt
+        )
+    }
+
+    fun bulkConsume(body: BulkConsumeRequest): List<MovementResult> {
+        // Consumo rápido FIFO por lotes
+        val results = mutableListOf<MovementResult>()
+        for (item in body.items) {
+            val product = productRepo.findById(item.productId).orElseThrow { EntityNotFoundException("Product not found") }
+            if (product.quantity < item.quantity) throw BusinessException("Insufficient stock", HttpStatus.CONFLICT)
+            product.quantity -= item.quantity
+            productRepo.save(product)
+            val movement = Movement(
+                user = User().apply { id = body.userId },
+                product = product,
+                type = MovementType.CONSUMPTION,
+                quantity = item.quantity,
+                occurredAt = Instant.now()
+            )
+            val savedMovement = movementRepo.save(movement)
+            results.add(MovementResult(
+                id = savedMovement.id!!,
+                userId = savedMovement.user?.id!!,
+                productId = savedMovement.product?.id!!,
+                type = cr.ac.una.homestock.dto.MovementType.valueOf(savedMovement.type.name),
+                quantity = savedMovement.quantity,
+                unitPrice = savedMovement.unitPrice,
+                storeId = savedMovement.store?.id,
+                note = savedMovement.note,
+                occurredAt = savedMovement.occurredAt!!,
+                createdAt = savedMovement.createdAt
+            ))
+        }
+        return results
+    }
+
+    fun transferStock(body: TransferRequest): MovementResult {
+        // Transferir stock entre ubicaciones
+        val product = productRepo.findById(body.productId).orElseThrow { EntityNotFoundException("Product not found") }
+        if (product.quantity < body.quantity) throw BusinessException("Insufficient stock", HttpStatus.CONFLICT)
+        // Lógica de transferencia: descontar de una ubicación y sumar en otra
+        product.quantity -= body.quantity
+        productRepo.save(product)
+        val movement = Movement(
+            user = User().apply { id = body.userId },
+            product = product,
+            type = MovementType.ADJUSTMENT,
+            quantity = body.quantity,
+            occurredAt = Instant.now(),
+            note = "Transfer from ${body.fromLocationId} to ${body.toLocationId}"
+        )
+        val savedMovement = movementRepo.save(movement)
+        return MovementResult(
+            id = savedMovement.id!!,
+            userId = savedMovement.user?.id!!,
+            productId = savedMovement.product?.id!!,
+            type = cr.ac.una.homestock.dto.MovementType.valueOf(savedMovement.type.name),
+            quantity = savedMovement.quantity,
+            unitPrice = savedMovement.unitPrice,
+            storeId = savedMovement.store?.id,
+            note = savedMovement.note,
+            occurredAt = savedMovement.occurredAt,
+            createdAt = savedMovement.createdAt
+        )
+    }
+}
+
+// ------------------------------
+// Consumption
+// ------------------------------
+
+@Service
+class ConsumptionService(
+    private val productRepo: ProductRepository,
+    private val movementRepo: MovementRepository
+) {
+    fun registerConsumption(body: ConsumptionRequest): MovementResult {
+        // Registrar consumo FIFO
+        val product = productRepo.findById(body.productId).orElseThrow { EntityNotFoundException("Product not found") }
+        if (product.quantity < body.quantity) throw BusinessException("Insufficient stock", HttpStatus.CONFLICT)
+        product.quantity -= body.quantity
+        productRepo.save(product)
+        val movement = Movement(
+            user = User().apply { id = body.userId },
+            product = product,
+            type = MovementType.CONSUMPTION,
+            quantity = body.quantity,
+            occurredAt = Instant.now(),
+            note = body.note
+        )
+        val savedMovement = movementRepo.save(movement)
+        return MovementResult(
+            id = savedMovement.id!!,
+            userId = savedMovement.user?.id!!,
+            productId = savedMovement.product?.id!!,
+            type = cr.ac.una.homestock.dto.MovementType.valueOf(savedMovement.type.name),
+            quantity = savedMovement.quantity,
+            unitPrice = savedMovement.unitPrice,
+            storeId = savedMovement.store?.id,
+            note = savedMovement.note,
+            occurredAt = savedMovement.occurredAt,
+            createdAt = savedMovement.createdAt
+        )
+    }
+}
+
 // Comentario: Ajustado import de BusinessException (ahora en common) y uso de abs().

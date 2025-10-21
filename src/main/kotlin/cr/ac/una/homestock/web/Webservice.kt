@@ -248,4 +248,45 @@ class ShoppingListController(
     fun toPurchase(@PathVariable id: Long): ShoppingListDetailResult = service.toPurchase(id)
 }
 
+@Validated
+@RestController
+@RequestMapping("/api/v1/inventory")
+class InventoryController(
+    private val inventoryService: InventoryService
+) {
+    @Operation(summary = "Listar stock por ubicación/estado (paginado/filtrado)")
+    @GetMapping
+    fun listInventory(
+        @RequestParam(required = false) locationId: Long?,
+        @RequestParam(required = false) status: String?,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int
+    ): PageResponse<ProductResult> = inventoryService.listInventory(locationId, status, page, size)
+
+    @Operation(summary = "Alta manual de stock")
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    fun addStock(@Valid @RequestBody body: ProductCreate): ProductResult = inventoryService.addStock(body)
+
+    @Operation(summary = "Consumo rápido (FIFO) por lotes")
+    @PostMapping("/bulk/consume")
+    fun bulkConsume(@Valid @RequestBody body: BulkConsumeRequest): List<MovementResult> = inventoryService.bulkConsume(body)
+
+    @Operation(summary = "Transferir stock entre ubicaciones")
+    @PostMapping("/transfers")
+    fun transferStock(@Valid @RequestBody body: TransferRequest): MovementResult = inventoryService.transferStock(body)
+}
+
+@Validated
+@RestController
+@RequestMapping("/api/v1/consumptions")
+class ConsumptionController(
+    private val consumptionService: ConsumptionService
+) {
+    @Operation(summary = "Registrar consumo (descuenta stock FIFO)")
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    fun registerConsumption(@Valid @RequestBody body: ConsumptionRequest): MovementResult = consumptionService.registerConsumption(body)
+}
+
 // Comentario de cambios: agregado @Operation(summary = ...) a todos los endpoints

@@ -413,3 +413,35 @@ annotation class NotZero(
 )
 
 // Nota: La validación real de @NotZero para Int se implementa con un ConstraintValidator en el paquete validation.
+
+// DTO para consumo rápido por lotes
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class BulkConsumeRequest(
+    val userId: Long,
+    val items: List<BulkConsumeItem>
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class BulkConsumeItem(
+    val productId: Long,
+    val quantity: Int
+)
+
+// DTO para transferencias de stock
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class TransferRequest(
+    val userId: Long,
+    val productId: Long,
+    val fromLocationId: Long,
+    val toLocationId: Long,
+    val quantity: Int
+)
+
+// DTO para registrar consumo
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class ConsumptionRequest(
+    val userId: Long,
+    val productId: Long,
+    val quantity: Int,
+    val note: String? = null
+)
