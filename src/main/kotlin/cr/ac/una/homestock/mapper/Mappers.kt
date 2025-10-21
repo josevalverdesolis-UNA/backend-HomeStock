@@ -366,6 +366,7 @@ interface ShoppingListItemMapper {
         Mapping(target = "list", ignore = true),
         Mapping(target = "product", ignore = true),
         Mapping(target = "targetStore", source = "input.targetStoreId", qualifiedByName = ["storeFromId"]),
+        Mapping(target = "checkedAt", ignore = true), // <--- CORRECCIÓN
         Mapping(target = "createdAt", ignore = true),
         Mapping(target = "updatedAt", ignore = true)
     )
