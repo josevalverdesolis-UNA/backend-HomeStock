@@ -1,5 +1,5 @@
 -- HomeStock – Super Complete Test Data (for unified schema)
--- Idempotente sin depender de índices únicos específicos. PostgreSQL 14+.
+-- Safe to run multiple times (idempotent). PostgreSQL 14+.
 
 -- Nota: no fijamos search_path; Flyway ya define current_schema según config
 
@@ -14,29 +14,29 @@ BEGIN
   IF has_pgcrypto THEN
     -- Inserta con contraseñas bcrypt generadas por pgcrypto (crypt + gen_salt('bf', 12))
     INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
-    SELECT 'Alice', 'alice@example.com', crypt('Alice123!', gen_salt('bf', 12)), 'USER', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00'
-    WHERE NOT EXISTS (SELECT 1 FROM users WHERE email='alice@example.com');
+    VALUES ('Alice', 'alice@example.com', crypt('Alice123!', gen_salt('bf', 12)), 'USER', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00')
+    ON CONFLICT (email) DO NOTHING;
 
     INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
-    SELECT 'Bob', 'bob@example.com', crypt('Bob123!', gen_salt('bf', 12)), 'USER', '2025-01-06 10:00:00+00', '2025-01-06 10:00:00+00'
-    WHERE NOT EXISTS (SELECT 1 FROM users WHERE email='bob@example.com');
+    VALUES ('Bob', 'bob@example.com', crypt('Bob123!', gen_salt('bf', 12)), 'USER', '2025-01-06 10:00:00+00', '2025-01-06 10:00:00+00')
+    ON CONFLICT (email) DO NOTHING;
 
     INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
-    SELECT 'Admin', 'admin@homestock.test', crypt('Adm1n$tr0ng!', gen_salt('bf', 12)), 'ADMIN', '2025-01-07 11:00:00+00', '2025-01-07 11:00:00+00'
-    WHERE NOT EXISTS (SELECT 1 FROM users WHERE email='admin@homestock.test');
+    VALUES ('Admin', 'admin@homestock.test', crypt('Adm1n$tr0ng!', gen_salt('bf', 12)), 'ADMIN', '2025-01-07 11:00:00+00', '2025-01-07 11:00:00+00')
+    ON CONFLICT (email) DO NOTHING;
   ELSE
-    -- Fallback sin pgcrypto: crea usuarios con password_hash vacío.
+    -- Fallback sin pgcrypto: crea usuarios con password_hash vacío. Podrás registrar/loguear usuarios reales vía API.
     INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
-    SELECT 'Alice', 'alice@example.com', '', 'USER', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00'
-    WHERE NOT EXISTS (SELECT 1 FROM users WHERE email='alice@example.com');
+    VALUES ('Alice', 'alice@example.com', '', 'USER', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00')
+    ON CONFLICT (email) DO NOTHING;
 
     INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
-    SELECT 'Bob', 'bob@example.com', '', 'USER', '2025-01-06 10:00:00+00', '2025-01-06 10:00:00+00'
-    WHERE NOT EXISTS (SELECT 1 FROM users WHERE email='bob@example.com');
+    VALUES ('Bob', 'bob@example.com', '', 'USER', '2025-01-06 10:00:00+00', '2025-01-06 10:00:00+00')
+    ON CONFLICT (email) DO NOTHING;
 
     INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
-    SELECT 'Admin', 'admin@homestock.test', '', 'ADMIN', '2025-01-07 11:00:00+00', '2025-01-07 11:00:00+00'
-    WHERE NOT EXISTS (SELECT 1 FROM users WHERE email='admin@homestock.test');
+    VALUES ('Admin', 'admin@homestock.test', '', 'ADMIN', '2025-01-07 11:00:00+00', '2025-01-07 11:00:00+00')
+    ON CONFLICT (email) DO NOTHING;
   END IF;
 END $$;
 
@@ -44,35 +44,22 @@ END $$;
 -- Categories
 -- =========================
 INSERT INTO categories (name, description, created_at, updated_at)
-SELECT 'Pantry', 'Non-perishable pantry items', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00'
-WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name='Pantry');
-
-INSERT INTO categories (name, description, created_at, updated_at)
-SELECT 'Beverages', 'Drinks and beverages', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00'
-WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name='Beverages');
-
-INSERT INTO categories (name, description, created_at, updated_at)
-SELECT 'Dairy', 'Milk and dairy products', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00'
-WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name='Dairy');
-
-INSERT INTO categories (name, description, created_at, updated_at)
-SELECT 'Cleaning', 'House cleaning supplies', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00'
-WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name='Cleaning');
+VALUES
+  ('Pantry', 'Non-perishable pantry items', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00'),
+  ('Beverages', 'Drinks and beverages', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00'),
+  ('Dairy', 'Milk and dairy products', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00'),
+  ('Cleaning', 'House cleaning supplies', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00')
+ON CONFLICT (name) DO NOTHING;
 
 -- =========================
 -- Stores
 -- =========================
 INSERT INTO stores (name, location, notes, created_at, updated_at)
-SELECT 'SuperMart', 'Main St 123', 'Large supermarket', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00'
-WHERE NOT EXISTS (SELECT 1 FROM stores WHERE name='SuperMart' AND location='Main St 123');
-
-INSERT INTO stores (name, location, notes, created_at, updated_at)
-SELECT 'Local Market', '2nd Ave 45', 'Neighborhood store', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00'
-WHERE NOT EXISTS (SELECT 1 FROM stores WHERE name='Local Market' AND location='2nd Ave 45');
-
-INSERT INTO stores (name, location, notes, created_at, updated_at)
-SELECT 'Online Store', 'Webshop', 'E-commerce vendor', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00'
-WHERE NOT EXISTS (SELECT 1 FROM stores WHERE name='Online Store' AND location='Webshop');
+VALUES
+  ('SuperMart', 'Main St 123', 'Large supermarket', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00'),
+  ('Local Market', '2nd Ave 45', 'Neighborhood store', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00'),
+  ('Online Store', 'Webshop', 'E-commerce vendor', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00')
+ON CONFLICT (name, location) DO NOTHING;
 
 -- =========================
 -- Products (explicit all fields)
@@ -133,7 +120,6 @@ WHERE NOT EXISTS (
     AND name = 'Milk 1L'
 );
 
--- Producto Bleach 2L para Admin (mantener)
 INSERT INTO products (user_id, name, category_id, quantity, min_stock, expiry_date, price, purchase_location_id, brand, image_url, acquisition_date, created_at, updated_at)
 SELECT
   (SELECT id FROM users WHERE email = 'admin@homestock.test'),
@@ -177,7 +163,7 @@ SELECT
 WHERE NOT EXISTS (
   SELECT 1 FROM movements
   WHERE user_id=(SELECT id FROM users WHERE email='alice@example.com')
-    AND product_id=(SELECT id FROM products WHERE name='Rice 1kg' AND user_id=(SELECT id FROM users WHERE email='alice@example.com')))
+    AND product_id=(SELECT id FROM products WHERE name='Rice 1kg' AND user_id=(SELECT id FROM users WHERE email='alice@example.com'))
     AND type='PURCHASE'
     AND occurred_at='2025-01-05 10:00:00+00'
 );
@@ -192,7 +178,7 @@ SELECT
 WHERE NOT EXISTS (
   SELECT 1 FROM movements
   WHERE user_id=(SELECT id FROM users WHERE email='alice@example.com')
-    AND product_id=(SELECT id FROM products WHERE name='Coffee 250g' AND user_id=(SELECT id FROM users WHERE email='alice@example.com')))
+    AND product_id=(SELECT id FROM products WHERE name='Coffee 250g' AND user_id=(SELECT id FROM users WHERE email='alice@example.com'))
     AND type='PURCHASE'
     AND occurred_at='2025-01-06 12:00:00+00'
 );
@@ -207,7 +193,7 @@ SELECT
 WHERE NOT EXISTS (
   SELECT 1 FROM movements
   WHERE user_id=(SELECT id FROM users WHERE email='bob@example.com')
-    AND product_id=(SELECT id FROM products WHERE name='Pasta 500g' AND user_id=(SELECT id FROM users WHERE email='bob@example.com')))
+    AND product_id=(SELECT id FROM products WHERE name='Pasta 500g' AND user_id=(SELECT id FROM users WHERE email='bob@example.com'))
     AND type='PURCHASE'
     AND occurred_at='2025-01-06 15:00:00+00'
 );
@@ -222,7 +208,7 @@ SELECT
 WHERE NOT EXISTS (
   SELECT 1 FROM movements
   WHERE user_id=(SELECT id FROM users WHERE email='alice@example.com')
-    AND product_id=(SELECT id FROM products WHERE name='Rice 1kg' AND user_id=(SELECT id FROM users WHERE email='alice@example.com')))
+    AND product_id=(SELECT id FROM products WHERE name='Rice 1kg' AND user_id=(SELECT id FROM users WHERE email='alice@example.com'))
     AND type='CONSUMPTION'
     AND occurred_at='2025-01-07 13:00:00+00'
 );
@@ -236,7 +222,7 @@ SELECT
 WHERE NOT EXISTS (
   SELECT 1 FROM movements
   WHERE user_id=(SELECT id FROM users WHERE email='alice@example.com')
-    AND product_id=(SELECT id FROM products WHERE name='Coffee 250g' AND user_id=(SELECT id FROM users WHERE email='alice@example.com')))
+    AND product_id=(SELECT id FROM products WHERE name='Coffee 250g' AND user_id=(SELECT id FROM users WHERE email='alice@example.com'))
     AND type='CONSUMPTION'
     AND occurred_at='2025-01-08 07:30:00+00'
 );
@@ -252,7 +238,7 @@ SELECT
 WHERE NOT EXISTS (
   SELECT 1 FROM movements
   WHERE user_id=(SELECT id FROM users WHERE email='alice@example.com')
-    AND product_id=(SELECT id FROM products WHERE name='Milk 1L' AND user_id=(SELECT id FROM users WHERE email='alice@example.com')))
+    AND product_id=(SELECT id FROM products WHERE name='Milk 1L' AND user_id=(SELECT id FROM users WHERE email='alice@example.com'))
     AND type='ADJUSTMENT'
     AND occurred_at='2025-01-08 10:00:00+00'
 );
@@ -267,7 +253,7 @@ SELECT
 WHERE NOT EXISTS (
   SELECT 1 FROM movements
   WHERE user_id=(SELECT id FROM users WHERE email='alice@example.com')
-    AND product_id=(SELECT id FROM products WHERE name='Bleach 2L' AND user_id=(SELECT id FROM users WHERE email='alice@example.com')))
+    AND product_id=(SELECT id FROM products WHERE name='Bleach 2L' AND user_id=(SELECT id FROM users WHERE email='alice@example.com'))
     AND type='ADJUSTMENT'
     AND occurred_at='2025-01-09 09:00:00+00'
 );
@@ -286,7 +272,7 @@ SELECT
 WHERE NOT EXISTS (
   SELECT 1 FROM shopping_items
   WHERE user_id=(SELECT id FROM users WHERE email='alice@example.com')
-    AND product_id=(SELECT id FROM products WHERE name='Coffee 250g' AND user_id=(SELECT id FROM users WHERE email='alice@example.com')))
+    AND product_id=(SELECT id FROM products WHERE name='Coffee 250g' AND user_id=(SELECT id FROM users WHERE email='alice@example.com'))
     AND is_purchased=FALSE
 );
 
@@ -301,7 +287,7 @@ SELECT
 WHERE NOT EXISTS (
   SELECT 1 FROM shopping_items
   WHERE user_id=(SELECT id FROM users WHERE email='bob@example.com')
-    AND product_id=(SELECT id FROM products WHERE name='Pasta 500g' AND user_id=(SELECT id FROM users WHERE email='bob@example.com')))
+    AND product_id=(SELECT id FROM products WHERE name='Pasta 500g' AND user_id=(SELECT id FROM users WHERE email='bob@example.com'))
     AND is_purchased=TRUE
     AND purchased_at='2025-01-10 16:30:00+00'
 );
@@ -319,12 +305,12 @@ SELECT
 WHERE NOT EXISTS (
   SELECT 1 FROM alerts
   WHERE user_id=(SELECT id FROM users WHERE email='alice@example.com')
-    AND product_id=(SELECT id FROM products WHERE name='Coffee 250g' AND user_id=(SELECT id FROM users WHERE email='alice@example.com')))
+    AND product_id=(SELECT id FROM products WHERE name='Coffee 250g' AND user_id=(SELECT id FROM users WHERE email='alice@example.com'))
     AND type='LOW_STOCK'
     AND trigger_at='2025-01-08 08:05:00+00'
 );
 
--- Expiry check (general, sin producto)
+-- Expiry check (general)
 INSERT INTO alerts (user_id, product_id, type, message, trigger_at, is_active, resolved_at, created_at, updated_at)
 SELECT
   (SELECT id FROM users WHERE email='alice@example.com'),
@@ -350,7 +336,7 @@ SELECT
   '2025-01-04 12:00:00+00', '2025-01-04 12:00:00+00', '2025-01-04 12:00:00+00'
 WHERE NOT EXISTS (
   SELECT 1 FROM price_history
-  WHERE product_id=(SELECT id FROM products WHERE name='Rice 1kg' AND user_id=(SELECT id FROM users WHERE email='alice@example.com')))
+  WHERE product_id=(SELECT id FROM products WHERE name='Rice 1kg' AND user_id=(SELECT id FROM users WHERE email='alice@example.com'))
     AND store_id=(SELECT id FROM stores WHERE name='SuperMart' AND location='Main St 123')
     AND recorded_at='2025-01-04 12:00:00+00'
 );
@@ -363,7 +349,7 @@ SELECT
   '2025-02-01 12:00:00+00', '2025-02-01 12:00:00+00', '2025-02-01 12:00:00+00'
 WHERE NOT EXISTS (
   SELECT 1 FROM price_history
-  WHERE product_id=(SELECT id FROM products WHERE name='Rice 1kg' AND user_id=(SELECT id FROM users WHERE email='alice@example.com')))
+  WHERE product_id=(SELECT id FROM products WHERE name='Rice 1kg' AND user_id=(SELECT id FROM users WHERE email='alice@example.com'))
     AND store_id=(SELECT id FROM stores WHERE name='SuperMart' AND location='Main St 123')
     AND recorded_at='2025-02-01 12:00:00+00'
 );
@@ -376,7 +362,7 @@ SELECT
   '2025-01-05 12:00:00+00', '2025-01-05 12:00:00+00', '2025-01-05 12:00:00+00'
 WHERE NOT EXISTS (
   SELECT 1 FROM price_history
-  WHERE product_id=(SELECT id FROM products WHERE name='Coffee 250g' AND user_id=(SELECT id FROM users WHERE email='alice@example.com')))
+  WHERE product_id=(SELECT id FROM products WHERE name='Coffee 250g' AND user_id=(SELECT id FROM users WHERE email='alice@example.com'))
     AND store_id=(SELECT id FROM stores WHERE name='Local Market' AND location='2nd Ave 45')
     AND recorded_at='2025-01-05 12:00:00+00'
 );
@@ -389,7 +375,7 @@ SELECT
   '2025-02-07 12:00:00+00', '2025-02-07 12:00:00+00', '2025-02-07 12:00:00+00'
 WHERE NOT EXISTS (
   SELECT 1 FROM price_history
-  WHERE product_id=(SELECT id FROM products WHERE name='Coffee 250g' AND user_id=(SELECT id FROM users WHERE email='alice@example.com')))
+  WHERE product_id=(SELECT id FROM products WHERE name='Coffee 250g' AND user_id=(SELECT id FROM users WHERE email='alice@example.com'))
     AND store_id=(SELECT id FROM stores WHERE name='Local Market' AND location='2nd Ave 45')
     AND recorded_at='2025-02-07 12:00:00+00'
 );
@@ -405,7 +391,7 @@ SELECT
 WHERE NOT EXISTS (
   SELECT 1 FROM product_ratings
   WHERE user_id=(SELECT id FROM users WHERE email='alice@example.com')
-    AND product_id=(SELECT id FROM products WHERE name='Rice 1kg' AND user_id=(SELECT id FROM users WHERE email='alice@example.com')))
+    AND product_id=(SELECT id FROM products WHERE name='Rice 1kg' AND user_id=(SELECT id FROM users WHERE email='alice@example.com'))
 );
 
 INSERT INTO product_ratings (user_id, product_id, quality_score, notes, created_at, updated_at)
@@ -416,7 +402,7 @@ SELECT
 WHERE NOT EXISTS (
   SELECT 1 FROM product_ratings
   WHERE user_id=(SELECT id FROM users WHERE email='alice@example.com')
-    AND product_id=(SELECT id FROM products WHERE name='Coffee 250g' AND user_id=(SELECT id FROM users WHERE email='alice@example.com')))
+    AND product_id=(SELECT id FROM products WHERE name='Coffee 250g' AND user_id=(SELECT id FROM users WHERE email='alice@example.com'))
 );
 
 INSERT INTO product_ratings (user_id, product_id, quality_score, notes, created_at, updated_at)
@@ -427,7 +413,7 @@ SELECT
 WHERE NOT EXISTS (
   SELECT 1 FROM product_ratings
   WHERE user_id=(SELECT id FROM users WHERE email='bob@example.com')
-    AND product_id=(SELECT id FROM products WHERE name='Pasta 500g' AND user_id=(SELECT id FROM users WHERE email='bob@example.com')))
+    AND product_id=(SELECT id FROM products WHERE name='Pasta 500g' AND user_id=(SELECT id FROM users WHERE email='bob@example.com'))
 );
 
 INSERT INTO product_ratings (user_id, product_id, quality_score, notes, created_at, updated_at)
@@ -438,11 +424,11 @@ SELECT
 WHERE NOT EXISTS (
   SELECT 1 FROM product_ratings
   WHERE user_id=(SELECT id FROM users WHERE email='alice@example.com')
-    AND product_id=(SELECT id FROM products WHERE name='Milk 1L' AND user_id=(SELECT id FROM users WHERE email='alice@example.com')))
+    AND product_id=(SELECT id FROM products WHERE name='Milk 1L' AND user_id=(SELECT id FROM users WHERE email='alice@example.com'))
 );
 
 -- =========================
--- Sanity checks (opcionales)
+-- Sanity checks (optional): quick counts
 -- =========================
 -- SELECT 'users' AS table, count(*) FROM users
 -- UNION ALL SELECT 'categories', count(*) FROM categories
@@ -453,3 +439,4 @@ WHERE NOT EXISTS (
 -- UNION ALL SELECT 'alerts', count(*) FROM alerts
 -- UNION ALL SELECT 'price_history', count(*) FROM price_history
 -- UNION ALL SELECT 'product_ratings', count(*) FROM product_ratings;
+
