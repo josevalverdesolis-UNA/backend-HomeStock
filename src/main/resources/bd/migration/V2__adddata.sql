@@ -13,38 +13,30 @@ BEGIN
 
   IF has_pgcrypto THEN
     -- Inserta con contraseñas bcrypt generadas por pgcrypto (crypt + gen_salt('bf', 12))
-    EXECUTE $$
-      INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
-      VALUES ('Alice', 'alice@example.com', crypt('Alice123!', gen_salt('bf', 12)), 'USER', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00')
-      ON CONFLICT (email) DO NOTHING;
-    $$;
-    EXECUTE $$
-      INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
-      VALUES ('Bob', 'bob@example.com', crypt('Bob123!', gen_salt('bf', 12)), 'USER', '2025-01-06 10:00:00+00', '2025-01-06 10:00:00+00')
-      ON CONFLICT (email) DO NOTHING;
-    $$;
-    EXECUTE $$
-      INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
-      VALUES ('Admin', 'admin@homestock.test', crypt('Adm1n$tr0ng!', gen_salt('bf', 12)), 'ADMIN', '2025-01-07 11:00:00+00', '2025-01-07 11:00:00+00')
-      ON CONFLICT (email) DO NOTHING;
-    $$;
+    INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
+    VALUES ('Alice', 'alice@example.com', crypt('Alice123!', gen_salt('bf', 12)), 'USER', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00')
+    ON CONFLICT (email) DO NOTHING;
+
+    INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
+    VALUES ('Bob', 'bob@example.com', crypt('Bob123!', gen_salt('bf', 12)), 'USER', '2025-01-06 10:00:00+00', '2025-01-06 10:00:00+00')
+    ON CONFLICT (email) DO NOTHING;
+
+    INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
+    VALUES ('Admin', 'admin@homestock.test', crypt('Adm1n$tr0ng!', gen_salt('bf', 12)), 'ADMIN', '2025-01-07 11:00:00+00', '2025-01-07 11:00:00+00')
+    ON CONFLICT (email) DO NOTHING;
   ELSE
     -- Fallback sin pgcrypto: crea usuarios con password_hash vacío. Podrás registrar/loguear usuarios reales vía API.
-    EXECUTE $$
-      INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
-      VALUES ('Alice', 'alice@example.com', '', 'USER', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00')
-      ON CONFLICT (email) DO NOTHING;
-    $$;
-    EXECUTE $$
-      INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
-      VALUES ('Bob', 'bob@example.com', '', 'USER', '2025-01-06 10:00:00+00', '2025-01-06 10:00:00+00')
-      ON CONFLICT (email) DO NOTHING;
-    $$;
-    EXECUTE $$
-      INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
-      VALUES ('Admin', 'admin@homestock.test', '', 'ADMIN', '2025-01-07 11:00:00+00', '2025-01-07 11:00:00+00')
-      ON CONFLICT (email) DO NOTHING;
-    $$;
+    INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
+    VALUES ('Alice', 'alice@example.com', '', 'USER', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00')
+    ON CONFLICT (email) DO NOTHING;
+
+    INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
+    VALUES ('Bob', 'bob@example.com', '', 'USER', '2025-01-06 10:00:00+00', '2025-01-06 10:00:00+00')
+    ON CONFLICT (email) DO NOTHING;
+
+    INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
+    VALUES ('Admin', 'admin@homestock.test', '', 'ADMIN', '2025-01-07 11:00:00+00', '2025-01-07 11:00:00+00')
+    ON CONFLICT (email) DO NOTHING;
   END IF;
 END $$;
 
