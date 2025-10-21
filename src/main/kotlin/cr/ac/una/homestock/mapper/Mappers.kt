@@ -319,6 +319,7 @@ interface ShoppingListMapper {
     @Mappings(
         Mapping(target = "id", ignore = true),
         Mapping(target = "user", source = "userId", qualifiedByName = ["userFromId"]),
+        Mapping(target = "status", ignore = true), // <--- CORRECCIÓN
         // status se deja por defecto (DRAFT) en el entity
         Mapping(target = "createdAt", ignore = true),
         Mapping(target = "updatedAt", ignore = true)
