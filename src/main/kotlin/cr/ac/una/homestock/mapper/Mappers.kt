@@ -309,4 +309,73 @@ interface ProductRatingMapper {
     fun toResult(entity: ProductRating): ProductRatingResult
 }
 
+// ------------------------------
+// ShoppingList (listas agrupadas)
+// ------------------------------
+
+@Mapper(componentModel = "spring", uses = [IdRefMapper::class], config = CommonMapperConfig::class)
+interface ShoppingListMapper {
+
+    @Mappings(
+        Mapping(target = "id", ignore = true),
+        Mapping(target = "user", source = "userId", qualifiedByName = ["userFromId"]),
+        // status se deja por defecto (DRAFT) en el entity
+        Mapping(target = "createdAt", ignore = true),
+        Mapping(target = "updatedAt", ignore = true)
+    )
+    fun fromCreate(input: ShoppingListCreate): ShoppingList
+
+    @Mappings(
+        Mapping(target = "userId", source = "user", qualifiedByName = ["idFromUser"]),
+        Mapping(target = "status", expression = "java(entity.getStatus().name())")
+    )
+    fun toResult(entity: ShoppingList): ShoppingListResult
+
+    @Mappings(
+        Mapping(target = "id", source = "entity.id"),
+        Mapping(target = "userId", source = "entity.user", qualifiedByName = ["idFromUser"]),
+        Mapping(target = "name", source = "entity.name"),
+        Mapping(target = "note", source = "entity.note"),
+        Mapping(target = "status", expression = "java(entity.getStatus().name())"),
+        Mapping(target = "items", source = "items"),
+        Mapping(target = "createdAt", source = "entity.createdAt"),
+        Mapping(target = "updatedAt", source = "entity.updatedAt")
+    )
+    fun toDetail(entity: ShoppingList, items: List<ShoppingListItemResult>): ShoppingListDetailResult
+}
+
+@Mapper(componentModel = "spring", uses = [IdRefMapper::class], config = CommonMapperConfig::class)
+interface ShoppingListItemMapper {
+
+    @Mappings(
+        Mapping(target = "id", ignore = true),
+        Mapping(target = "list", source = "list"),
+        Mapping(target = "product", source = "input.productId", qualifiedByName = ["productFromId"]),
+        Mapping(target = "checked", constant = "false"),
+        Mapping(target = "checkedAt", ignore = true),
+        Mapping(target = "targetStore", source = "input.targetStoreId", qualifiedByName = ["storeFromId"]),
+        Mapping(target = "createdAt", ignore = true),
+        Mapping(target = "updatedAt", ignore = true)
+    )
+    fun fromCreate(list: ShoppingList, input: ShoppingListItemCreate): ShoppingListItem
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mappings(
+        Mapping(target = "id", ignore = true),
+        Mapping(target = "list", ignore = true),
+        Mapping(target = "product", ignore = true),
+        Mapping(target = "targetStore", source = "input.targetStoreId", qualifiedByName = ["storeFromId"]),
+        Mapping(target = "createdAt", ignore = true),
+        Mapping(target = "updatedAt", ignore = true)
+    )
+    fun update(input: ShoppingListItemUpdate, @MappingTarget entity: ShoppingListItem)
+
+    @Mappings(
+        Mapping(target = "listId", source = "list.id"),
+        Mapping(target = "productId", source = "product.id"),
+        Mapping(target = "targetStoreId", source = "targetStore", qualifiedByName = ["idFromStore"])
+    )
+    fun toResult(entity: ShoppingListItem): ShoppingListItemResult
+}
+
 // Comentario de cambios: MovementMapper ya no asigna user desde DTO; el servicio asegura coherencia.

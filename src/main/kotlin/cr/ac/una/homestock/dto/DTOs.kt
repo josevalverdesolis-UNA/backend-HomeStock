@@ -333,6 +333,71 @@ data class ProductRatingResult(
 )
 
 // ------------------------------
+// ShoppingList (listas agrupadas)
+// ------------------------------
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class ShoppingListCreate(
+    @field:NotNull
+    val userId: Long,
+    @field:NotBlank
+    val name: String,
+    val note: String? = null,
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class ShoppingListResult(
+    val id: Long,
+    val userId: Long,
+    val name: String,
+    val note: String?,
+    val status: String,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class ShoppingListItemCreate(
+    @field:NotNull
+    val productId: Long,
+    @field:Min(1)
+    val desiredQuantity: Int = 1,
+    val targetStoreId: Long? = null,
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class ShoppingListItemUpdate(
+    @field:Min(1)
+    val desiredQuantity: Int? = null,
+    val checked: Boolean? = null,
+    val targetStoreId: Long? = null,
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class ShoppingListItemResult(
+    val id: Long,
+    val listId: Long,
+    val productId: Long,
+    val desiredQuantity: Int,
+    val checked: Boolean,
+    val checkedAt: Instant?,
+    val targetStoreId: Long?,
+    val createdAt: Instant,
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class ShoppingListDetailResult(
+    val id: Long,
+    val userId: Long,
+    val name: String,
+    val note: String?,
+    val status: String,
+    val items: List<ShoppingListItemResult>,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+)
+
+// ------------------------------
 // Validaciones adicionales
 // ------------------------------
 

@@ -207,4 +207,45 @@ class ProductRatingController(
     fun upsert(@Valid @RequestBody body: ProductRatingCreate): ProductRatingResult = service.upsert(body)
 }
 
+@Validated
+@RestController
+@RequestMapping("/api/v1/shopping-lists")
+class ShoppingListController(
+    private val service: ShoppingListService
+) {
+    @Operation(summary = "Listar listas de compras de un usuario")
+    @GetMapping
+    fun list(@RequestParam userId: Long): List<ShoppingListResult> = service.list(userId)
+
+    @Operation(summary = "Detalle de una lista de compras con ítems")
+    @GetMapping("/{id}")
+    fun detail(@PathVariable id: Long): ShoppingListDetailResult = service.detail(id)
+
+    @Operation(summary = "Crear lista de compras")
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    fun create(@Valid @RequestBody body: ShoppingListCreate): ShoppingListResult = service.create(body)
+
+    @Operation(summary = "Agregar ítem a una lista de compras")
+    @PostMapping("/{id}/items")
+    fun addItem(@PathVariable id: Long, @Valid @RequestBody body: ShoppingListItemCreate): ShoppingListItemResult =
+        service.addItem(id, body)
+
+    @Operation(summary = "Actualizar/marcar ítem de una lista de compras")
+    @PatchMapping("/{id}/items/{itemId}")
+    fun updateItem(
+        @PathVariable id: Long,
+        @PathVariable itemId: Long,
+        @Valid @RequestBody body: ShoppingListItemUpdate
+    ): ShoppingListItemResult = service.updateItem(id, itemId, body)
+
+    @Operation(summary = "Generar ítems desde bajo stock/caducidad")
+    @PostMapping("/{id}/generate-from-low-stock")
+    fun generateFromLowStock(@PathVariable id: Long): ShoppingListDetailResult = service.generateFromLowStock(id)
+
+    @Operation(summary = "Convertir lista a compra (ajuste de stock)")
+    @PostMapping("/{id}/to-purchase")
+    fun toPurchase(@PathVariable id: Long): ShoppingListDetailResult = service.toPurchase(id)
+}
+
 // Comentario de cambios: agregado @Operation(summary = ...) a todos los endpoints

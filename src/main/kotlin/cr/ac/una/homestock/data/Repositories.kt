@@ -139,4 +139,20 @@ interface RefreshTokenRepository : JpaRepository<RefreshToken, Long> {
     fun findAllByUser_IdAndRevokedAtIsNull(userId: Long): List<RefreshToken>
 }
 
+// ------------------------------
+// ShoppingList (listas agrupadas)
+// ------------------------------
+
+@Repository
+interface ShoppingListRepository : JpaRepository<ShoppingList, Long> {
+    fun findAllByUser_Id(userId: Long): List<ShoppingList>
+}
+
+@Repository
+interface ShoppingListItemRepository : JpaRepository<ShoppingListItem, Long> {
+    fun findAllByList_Id(listId: Long): List<ShoppingListItem>
+    fun findByList_IdAndId(listId: Long, id: Long): Optional<ShoppingListItem>
+    fun findByList_IdAndProduct_Id(listId: Long, productId: Long): Optional<ShoppingListItem>
+}
+
 // Comentario de cambios: Actualizados métodos derivados para purchased/active

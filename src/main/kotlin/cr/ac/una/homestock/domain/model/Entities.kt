@@ -24,6 +24,9 @@ enum class ShoppingSource { AUTO_RULE, MANUAL }
 
 enum class AlertType { LOW_STOCK, EXPIRY }
 
+// Nuevo: estado de lista de compras
+enum class ShoppingListStatus { DRAFT, COMPLETED, CANCELLED }
+
 // ------------------------------
 // Auditoría simple
 // ------------------------------
@@ -266,6 +269,70 @@ open class ShoppingItem(
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     open var source: ShoppingSource = ShoppingSource.MANUAL,
+
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "target_store_id")
+    open var targetStore: Store? = null,
+) : Auditable()
+
+// ------------------------------
+// Nuevo módulo: ShoppingList + ShoppingListItem (ítems por lista)
+// ------------------------------
+
+@Entity
+@Table(
+    name = "shopping_lists",
+    indexes = [
+        Index(name = "ix_shopl_user", columnList = "user_id"),
+        Index(name = "ix_shopl_status", columnList = "status")
+    ]
+)
+open class ShoppingList(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    open var id: Long? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "user_id", nullable = false)
+    open var user: User? = null,
+
+    @Column(nullable = false)
+    open var name: String = "",
+
+    @Column
+    open var note: String? = null,
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    open var status: ShoppingListStatus = ShoppingListStatus.DRAFT,
+) : Auditable()
+
+@Entity
+@Table(
+    name = "shopping_list_items",
+    uniqueConstraints = [
+        UniqueConstraint(name = "uk_shoplitem_list_product", columnNames = ["list_id", "product_id"])
+    ],
+    indexes = [
+        Index(name = "ix_shoplitem_list", columnList = "list_id"),
+        Index(name = "ix_shoplitem_product", columnList = "product_id")
+    ]
+)
+open class ShoppingListItem(
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    open var id: Long? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "list_id", nullable = false)
+    open var list: ShoppingList? = null,
+
+    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "product_id", nullable = false)
+    open var product: Product? = null,
+
+    @Column(name = "desired_quantity", nullable = false)
+    open var desiredQuantity: Int = 1,
+
+    @Column(name = "is_checked", nullable = false)
+    open var checked: Boolean = false,
+
+    @Column(name = "checked_at")
+    open var checkedAt: Instant? = null,
 
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "target_store_id")
     open var targetStore: Store? = null,

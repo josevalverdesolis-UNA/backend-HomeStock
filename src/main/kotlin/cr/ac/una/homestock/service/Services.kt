@@ -407,4 +407,138 @@ class ProductRatingService(
     }
 }
 
+// ------------------------------
+// ShoppingList (listas agrupadas)
+// ------------------------------
+
+@Service
+class ShoppingListService(
+    private val listRepo: ShoppingListRepository,
+    private val itemRepo: ShoppingListItemRepository,
+    private val productRepo: ProductRepository,
+    private val userRepo: UserRepository,
+    private val listMapper: ShoppingListMapper,
+    private val itemMapper: ShoppingListItemMapper,
+    private val movementService: MovementService,
+) {
+    fun list(userId: Long): List<ShoppingListResult> =
+        listRepo.findAllByUser_Id(userId).map(listMapper::toResult)
+
+    fun detail(id: Long): ShoppingListDetailResult {
+        val entity = listRepo.findById(id).orElseThrow { notFound("ShoppingList", id) }
+        val items = itemRepo.findAllByList_Id(id).map(itemMapper::toResult)
+        return listMapper.toDetail(entity, items)
+    }
+
+    @Transactional
+    fun create(input: ShoppingListCreate): ShoppingListResult {
+        if (!userRepo.existsById(input.userId)) notFound("User", input.userId)
+        val entity = listMapper.fromCreate(input)
+        return listMapper.toResult(listRepo.save(entity))
+    }
+
+    @Transactional
+    fun addItem(listId: Long, input: ShoppingListItemCreate): ShoppingListItemResult {
+        val list = listRepo.findById(listId).orElseThrow { notFound("ShoppingList", listId) }
+        if (list.status != ShoppingListStatus.DRAFT) throw BusinessException("List is not editable", HttpStatus.CONFLICT)
+        val product = productRepo.findById(input.productId).orElseThrow { notFound("Product", input.productId) }
+        // Coherencia: el producto debe pertenecer al mismo usuario de la lista
+        val listUserId = list.user?.id ?: throw IllegalStateException("List without owner user")
+        val productUserId = product.user?.id ?: throw IllegalStateException("Product without owner user")
+        if (listUserId != productUserId) throw BusinessException("Product does not belong to list user", HttpStatus.FORBIDDEN)
+
+        val existing = itemRepo.findByList_IdAndProduct_Id(listId, input.productId)
+        val entity = if (existing.isPresent) {
+            val e = existing.get()
+            e.desiredQuantity += input.desiredQuantity
+            input.targetStoreId?.let { e.targetStore = Store(id = it) }
+            e
+        } else {
+            itemMapper.fromCreate(list, input)
+        }
+        return itemMapper.toResult(itemRepo.save(entity))
+    }
+
+    @Transactional
+    fun updateItem(listId: Long, itemId: Long, input: ShoppingListItemUpdate): ShoppingListItemResult {
+        val entity = itemRepo.findByList_IdAndId(listId, itemId).orElseThrow { notFound("ShoppingListItem", itemId) }
+        val list = entity.list ?: throw IllegalStateException("Item without list")
+        if (list.status != ShoppingListStatus.DRAFT) throw BusinessException("List is not editable", HttpStatus.CONFLICT)
+        val prevChecked = entity.checked
+        itemMapper.update(input, entity)
+        // Marcar timestamps
+        input.checked?.let { chk ->
+            entity.checkedAt = if (chk) Instant.now() else null
+        }
+        // Evitar no-ops que dejen estado inconsistente
+        if (!prevChecked && entity.checked && entity.checkedAt == null) entity.checkedAt = Instant.now()
+        if (!entity.checked) entity.checkedAt = null
+        return itemMapper.toResult(entity)
+    }
+
+    @Transactional
+    fun generateFromLowStock(listId: Long): ShoppingListDetailResult {
+        val list = listRepo.findById(listId).orElseThrow { notFound("ShoppingList", listId) }
+        if (list.status != ShoppingListStatus.DRAFT) throw BusinessException("List is not editable", HttpStatus.CONFLICT)
+        val userId = list.user?.id ?: throw IllegalStateException("List without owner user")
+        val today = java.time.LocalDate.now()
+        val products = productRepo.findAllByUser_Id(userId)
+        products.forEach { p ->
+            val lowStock = p.quantity <= p.minStock
+            val expiring = p.expiryDate?.let { !it.isAfter(today) } ?: false
+            if (lowStock || expiring) {
+                val desired = if (lowStock) (p.minStock - p.quantity).coerceAtLeast(1) else 1
+                val existing = itemRepo.findByList_IdAndProduct_Id(listId, p.id!!)
+                if (existing.isPresent) {
+                    val it = existing.get()
+                    it.desiredQuantity = maxOf(it.desiredQuantity, desired)
+                } else {
+                    val toCreate = ShoppingListItem(
+                        list = list,
+                        product = p,
+                        desiredQuantity = desired,
+                        checked = false,
+                        checkedAt = null,
+                        targetStore = p.purchaseLocation
+                    )
+                    itemRepo.save(toCreate)
+                }
+            }
+        }
+        // devolver detalle
+        val items = itemRepo.findAllByList_Id(listId).map(itemMapper::toResult)
+        return listMapper.toDetail(list, items)
+    }
+
+    @Transactional
+    fun toPurchase(listId: Long): ShoppingListDetailResult {
+        val list = listRepo.findById(listId).orElseThrow { notFound("ShoppingList", listId) }
+        if (list.status != ShoppingListStatus.DRAFT) throw BusinessException("List cannot be converted (status=${'$'}{list.status})", HttpStatus.CONFLICT)
+        val userId = list.user?.id ?: throw IllegalStateException("List without owner user")
+        val allItems = itemRepo.findAllByList_Id(listId)
+        val selected = allItems.filter { it.checked }.ifEmpty { allItems }
+        // Convertir a movimientos tipo ADJUSTMENT +
+        selected.forEach { it ->
+            val productId = it.product?.id ?: return@forEach
+            movementService.create(
+                MovementCreate(
+                    userId = userId,
+                    productId = productId,
+                    type = MovementTypeDTO.ADJUSTMENT,
+                    quantity = it.desiredQuantity,
+                    unitPrice = null,
+                    storeId = it.targetStore?.id,
+                    note = "Auto from shopping list ${'$'}{list.id}",
+                    occurredAt = Instant.now()
+                )
+            )
+        }
+        // marcar lista como completada
+        list.status = ShoppingListStatus.COMPLETED
+        // devolver detalle actualizado
+        val items = itemRepo.findAllByList_Id(listId).map(itemMapper::toResult)
+        return listMapper.toDetail(list, items)
+    }
+}
+
 // Comentario: Ajustado import de BusinessException (ahora en common) y uso de abs().
