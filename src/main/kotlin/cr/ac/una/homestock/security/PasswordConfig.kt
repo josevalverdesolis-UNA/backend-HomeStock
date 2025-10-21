@@ -1,4 +1,5 @@
-package cr.ac.una.homestock.config
+@file:Suppress("unused")
+package cr.ac.una.homestock.security
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration

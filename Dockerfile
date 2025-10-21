@@ -37,6 +37,18 @@ EXPOSE 8080
 # Flags JVM seguros para contenedores
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -Djava.security.egd=file:/dev/./urandom"
 
-# Importante: respetar el puerto de Render
-ENTRYPOINT ["/bin/sh","-c","exec java $JAVA_OPTS -jar app.jar --server.port=${PORT:-8080}"]
-
+# Si Render provee DATABASE_URL (postgres://user:pass@host:port/db?sslmode=require),
+# lo convertimos a variables SPRING_DATASOURCE_* esperadas por la app.
+# Esto permite vincular fácilmente el servicio de Postgres en Render sin configurar manualmente las 3 vars.
+ENTRYPOINT ["/bin/sh","-c","\
+if [ -n \"$DATABASE_URL\" ] && [ -z \"$SPRING_DATASOURCE_URL\" ]; then \
+  proto_removed=\${DATABASE_URL#*://}; \
+  creds=\${proto_removed%@*}; \
+  hostpath=\${proto_removed#*@}; \
+  user=\${creds%%:*}; \
+  pass=\${creds#*:}; \
+  export SPRING_DATASOURCE_URL=jdbc:postgresql://\${hostpath}; \
+  export SPRING_DATASOURCE_USERNAME=\"\${user}\"; \
+  export SPRING_DATASOURCE_PASSWORD=\"\${pass}\"; \
+fi; \
+exec java $JAVA_OPTS -jar app.jar --server.port=\${PORT:-8080}"]

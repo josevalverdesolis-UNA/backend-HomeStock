@@ -4,7 +4,7 @@ import cr.ac.una.homestock.domain.entity.*
 import cr.ac.una.homestock.dto.*
 import cr.ac.una.homestock.mapper.*
 import cr.ac.una.homestock.repository.*
-import cr.ac.una.homestock.web.BusinessException
+import cr.ac.una.homestock.common.BusinessException
 import jakarta.persistence.EntityNotFoundException
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
@@ -71,7 +71,7 @@ class StoreService(
         val conflict = if (input.location == null)
             repo.existsByNameIgnoreCaseAndLocationIsNull(input.name)
         else
-            repo.existsByNameIgnoreCaseAndLocationIgnoreCase(input.name, input.location!!)
+            repo.existsByNameIgnoreCaseAndLocationIgnoreCase(input.name, input.location)
         if (conflict) throw BusinessException("Store (name, location) already exists", HttpStatus.CONFLICT)
         val entity = mapper.toEntity(input)
         return mapper.toResult(repo.save(entity))
@@ -86,8 +86,10 @@ class StoreService(
         val conflict = if (newLoc == null)
             repo.existsByNameIgnoreCaseAndLocationIsNull(newName)
         else
-            repo.existsByNameIgnoreCaseAndLocationIgnoreCase(newName, newLoc!!)
-        if (conflict && !(newName.equals(entity.name, true) && (newLoc?.equals(entity.location, true) ?: entity.location == null))) {
+            repo.existsByNameIgnoreCaseAndLocationIgnoreCase(newName, newLoc)
+        val isSameAsCurrent = newName.equals(entity.name, ignoreCase = true) &&
+                ((newLoc == null && entity.location == null) || (newLoc != null && newLoc.equals(entity.location, ignoreCase = true)))
+        if (conflict && !isSameAsCurrent) {
             throw BusinessException("Store (name, location) already exists", HttpStatus.CONFLICT)
         }
         mapper.update(input, entity)
@@ -170,7 +172,7 @@ class MovementService(
             throw BusinessException("unitPrice is required and must be > 0 for PURCHASE")
         }
         // Normalización: almacenar cantidad positiva, aplicar signo al stock
-        val absQty = kotlin.math.abs(input.quantity)
+        val absQty = abs(input.quantity)
         val stockDelta = when (input.type) {
             MovementTypeDTO.PURCHASE -> absQty
             MovementTypeDTO.CONSUMPTION -> -absQty
@@ -356,4 +358,4 @@ class ProductRatingService(
     }
 }
 
-// Comentario de cambios: Movement guarda quantity positiva y occurredAt; ShoppingItem usa desiredQuantity y targetStore; StoreService valida UQ (name, location); AlertService close()
+// Comentario: Ajustado import de BusinessException (ahora en common) y uso de abs().

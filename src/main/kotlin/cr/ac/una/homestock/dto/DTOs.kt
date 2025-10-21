@@ -8,7 +8,7 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import kotlin.reflect.KClass
-import cr.ac.una.homestock.web.NotZeroValidator
+import cr.ac.una.homestock.validation.NotZeroValidator
 import jakarta.validation.Constraint
 
 /**
@@ -343,4 +343,4 @@ annotation class NotZero(
     val payload: Array<KClass<out Any>> = emptyArray()
 )
 
-// Nota: La validación real de @NotZero para Int puede implementarse con un ConstraintValidator en otra clase si se requiere.
+// Nota: La validación real de @NotZero para Int se implementa con un ConstraintValidator en el paquete validation.

@@ -1,12 +1,11 @@
+@file:Suppress("unused")
 package cr.ac.una.homestock.web
 
-import cr.ac.una.homestock.dto.NotZero
+import cr.ac.una.homestock.common.BusinessException
 import jakarta.persistence.EntityNotFoundException
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.ConstraintViolation
 import jakarta.validation.ConstraintViolationException
-import jakarta.validation.ConstraintValidator
-import jakarta.validation.ConstraintValidatorContext
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -19,15 +18,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.servlet.resource.NoResourceFoundException
 import java.time.Instant
 
-/**
- * Manejo centralizado de errores para la capa web.
- * - Estructura consistente de respuesta (ApiError).
- * - Handlers específicos para validación y reglas de negocio.
- */
-
-// ------------------------------
 // Modelo de error API
-// ------------------------------
 
 data class FieldErrorItem(
     val field: String,
@@ -43,23 +34,9 @@ data class ApiError(
     val errors: List<FieldErrorItem>? = null,
 )
 
-// ------------------------------
-// Excepción de negocio
-// ------------------------------
-
-open class BusinessException(
-    override val message: String,
-    val httpStatus: HttpStatus = HttpStatus.UNPROCESSABLE_ENTITY
-) : RuntimeException(message)
-
-// ------------------------------
-// Controller Advice global
-// ------------------------------
-
 @RestControllerAdvice(basePackages = ["cr.ac.una.homestock"])
 class GlobalExceptionHandler {
 
-    // 1) Bean Validation: @Valid en cuerpos (DTOs) -> 400 BAD_REQUEST
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleMethodArgumentNotValid(ex: MethodArgumentNotValidException, req: HttpServletRequest): ResponseEntity<ApiError> {
         val fieldErrors = ex.bindingResult.allErrors
@@ -74,7 +51,6 @@ class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body)
     }
 
-    // 2) Bean Validation: @Validated en params/path variables -> 400 BAD_REQUEST
     @ExceptionHandler(ConstraintViolationException::class)
     fun handleConstraintViolation(ex: ConstraintViolationException, req: HttpServletRequest): ResponseEntity<ApiError> {
         val violations = ex.constraintViolations.map { it.toFieldErrorItem() }
@@ -88,7 +64,6 @@ class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body)
     }
 
-    // 3) Request mal formado / body ilegible -> 400 BAD_REQUEST
     @ExceptionHandler(HttpMessageNotReadableException::class)
     fun handleNotReadable(ex: HttpMessageNotReadableException, req: HttpServletRequest): ResponseEntity<ApiError> {
         val body = ApiError(
@@ -100,7 +75,6 @@ class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body)
     }
 
-    // 4) Falta parámetro requerido -> 400 BAD_REQUEST
     @ExceptionHandler(MissingServletRequestParameterException::class)
     fun handleMissingParam(ex: MissingServletRequestParameterException, req: HttpServletRequest): ResponseEntity<ApiError> {
         val body = ApiError(
@@ -112,7 +86,6 @@ class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body)
     }
 
-    // 5) No encontrado (EntityNotFound / NoSuchElement) -> 404 NOT_FOUND
     @ExceptionHandler(value = [EntityNotFoundException::class, NoSuchElementException::class])
     fun handleNotFound(ex: Exception, req: HttpServletRequest): ResponseEntity<ApiError> {
         val body = ApiError(
@@ -124,7 +97,6 @@ class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body)
     }
 
-    // 5b) Recurso estático o ruta no encontrada (Spring MVC Resource chain) -> 404 NOT_FOUND
     @ExceptionHandler(NoResourceFoundException::class)
     fun handleNoResourceFound(ex: NoResourceFoundException, req: HttpServletRequest): ResponseEntity<ApiError> {
         val body = ApiError(
@@ -136,7 +108,6 @@ class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body)
     }
 
-    // 6) Integridad de datos (duplicados, FKs, etc.) -> 409 CONFLICT
     @ExceptionHandler(DataIntegrityViolationException::class)
     fun handleDataIntegrity(ex: DataIntegrityViolationException, req: HttpServletRequest): ResponseEntity<ApiError> {
         val body = ApiError(
@@ -148,7 +119,6 @@ class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body)
     }
 
-    // 7) Reglas de negocio expresas -> httpStatus custom
     @ExceptionHandler(BusinessException::class)
     fun handleBusiness(ex: BusinessException, req: HttpServletRequest): ResponseEntity<ApiError> {
         val body = ApiError(
@@ -160,7 +130,6 @@ class GlobalExceptionHandler {
         return ResponseEntity.status(ex.httpStatus).body(body)
     }
 
-    // 8) Credenciales inválidas -> 401 UNAUTHORIZED; estado inválido -> 422 UNPROCESSABLE_ENTITY
     @ExceptionHandler(IllegalArgumentException::class)
     fun handleIllegalArgument(ex: IllegalArgumentException, req: HttpServletRequest): ResponseEntity<ApiError> {
         val body = ApiError(
@@ -183,7 +152,6 @@ class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(body)
     }
 
-    // 9) Fallback 500 -> 500 INTERNAL_SERVER_ERROR
     @ExceptionHandler(Exception::class)
     fun handleUnknown(ex: Exception, req: HttpServletRequest): ResponseEntity<ApiError> {
         val body = ApiError(
@@ -196,23 +164,7 @@ class GlobalExceptionHandler {
     }
 }
 
-// ------------------------------
-// Soporte: mapeo de ConstraintViolation -> FieldErrorItem
-// ------------------------------
-
 private fun ConstraintViolation<*>.toFieldErrorItem(): FieldErrorItem {
     val field = propertyPath?.toString()?.substringAfter('.') ?: propertyPath.toString()
     return FieldErrorItem(field = field, message = message ?: "Invalid value")
 }
-
-// ------------------------------
-// Implementación del validador para @NotZero (Int?)
-// ------------------------------
-
-class NotZeroValidator : ConstraintValidator<NotZero, Int?> {
-    override fun isValid(value: Int?, context: ConstraintValidatorContext?): Boolean {
-        return value == null || value != 0
-    }
-}
-
-// Comentario de cambios: creado/actualizado archivo -> Errors.kt

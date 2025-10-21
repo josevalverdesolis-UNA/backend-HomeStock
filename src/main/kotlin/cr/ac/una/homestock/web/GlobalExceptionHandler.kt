@@ -1,3 +1,4 @@
+
 package cr.ac.una.homestock.web
 
 import org.springframework.dao.DataIntegrityViolationException
@@ -7,6 +8,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 
 // Nota: Handler legado desactivado. Usar GlobalExceptionHandler en Errors.kt.
+@Deprecated("Reemplazado por GlobalExceptionHandler en Errors.kt")
 class LegacyExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException::class)

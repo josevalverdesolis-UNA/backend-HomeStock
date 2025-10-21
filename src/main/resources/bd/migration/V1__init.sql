@@ -1,8 +1,8 @@
 -- HomeStock – Unified SQL (V2 consolidated V1..V6)
--- Idempotent: safe to run multiple times
+-- Idempotent sections use IF EXISTS and guard rails
 -- Target: PostgreSQL 14+
 
-SET search_path TO public;
+-- Nota: no forzamos search_path aquí; Flyway ya fija el esquema actual (current_schema)
 
 -- =========================
 -- Tables
@@ -146,13 +146,13 @@ DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.table_constraints
-    WHERE table_schema='public' AND table_name='stores' AND constraint_name='uk_store_name'
+    WHERE table_schema = current_schema() AND table_name = 'stores' AND constraint_name = 'uk_store_name'
   ) THEN
     ALTER TABLE stores DROP CONSTRAINT uk_store_name;
   END IF;
   IF EXISTS (
     SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE c.relkind = 'i' AND c.relname = 'ix_store_name' AND n.nspname = 'public'
+    WHERE c.relkind = 'i' AND c.relname = 'ix_store_name' AND n.nspname = current_schema()
   ) THEN
     DROP INDEX IF EXISTS ix_store_name;
   END IF;
@@ -161,6 +161,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS ix_store_name_location ON stores(name, locatio
 DO $$ BEGIN
   ALTER TABLE stores ADD CONSTRAINT uk_store_name_location UNIQUE USING INDEX ix_store_name_location;
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+-- Asegura unicidad también cuando location IS NULL (PostgreSQL permite múltiples NULL en UNIQUE normal)
+CREATE UNIQUE INDEX IF NOT EXISTS ix_store_name_location_null ON stores(name) WHERE location IS NULL;
 
 -- Product uniqueness per user
 CREATE UNIQUE INDEX IF NOT EXISTS ix_product_user_name ON products(user_id, name);
@@ -388,4 +390,3 @@ DO $$ BEGIN
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
   END IF;
 END $$;
-

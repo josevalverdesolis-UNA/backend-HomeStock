@@ -1,28 +1,52 @@
 -- HomeStock – Super Complete Test Data (for unified schema)
 -- Safe to run multiple times (idempotent). PostgreSQL 14+.
 
-SET search_path TO public;
-
--- Enable pgcrypto for password hashing (noop if already installed)
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- Nota: no fijamos search_path; Flyway ya define current_schema según config
 
 -- =========================
 -- Users (explicit hashes & roles)
 -- =========================
--- Alice (USER)
-INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
-VALUES ('Alice', 'alice@example.com', crypt('Alice123!', gen_salt('bf', 12)), 'USER', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00')
-ON CONFLICT (email) DO NOTHING;
+DO $$
+DECLARE has_pgcrypto boolean;
+BEGIN
+  SELECT EXISTS(SELECT 1 FROM pg_catalog.pg_extension WHERE extname='pgcrypto') INTO has_pgcrypto;
 
--- Bob (USER)
-INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
-VALUES ('Bob', 'bob@example.com', crypt('Bob123!', gen_salt('bf', 12)), 'USER', '2025-01-06 10:00:00+00', '2025-01-06 10:00:00+00')
-ON CONFLICT (email) DO NOTHING;
-
--- Admin (ADMIN)
-INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
-VALUES ('Admin', 'admin@homestock.test', crypt('Adm1n$tr0ng!', gen_salt('bf', 12)), 'ADMIN', '2025-01-07 11:00:00+00', '2025-01-07 11:00:00+00')
-ON CONFLICT (email) DO NOTHING;
+  IF has_pgcrypto THEN
+    -- Inserta con contraseñas bcrypt generadas por pgcrypto (crypt + gen_salt('bf', 12))
+    EXECUTE $$
+      INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
+      VALUES ('Alice', 'alice@example.com', crypt('Alice123!', gen_salt('bf', 12)), 'USER', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00')
+      ON CONFLICT (email) DO NOTHING;
+    $$;
+    EXECUTE $$
+      INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
+      VALUES ('Bob', 'bob@example.com', crypt('Bob123!', gen_salt('bf', 12)), 'USER', '2025-01-06 10:00:00+00', '2025-01-06 10:00:00+00')
+      ON CONFLICT (email) DO NOTHING;
+    $$;
+    EXECUTE $$
+      INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
+      VALUES ('Admin', 'admin@homestock.test', crypt('Adm1n$tr0ng!', gen_salt('bf', 12)), 'ADMIN', '2025-01-07 11:00:00+00', '2025-01-07 11:00:00+00')
+      ON CONFLICT (email) DO NOTHING;
+    $$;
+  ELSE
+    -- Fallback sin pgcrypto: crea usuarios con password_hash vacío. Podrás registrar/loguear usuarios reales vía API.
+    EXECUTE $$
+      INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
+      VALUES ('Alice', 'alice@example.com', '', 'USER', '2025-01-05 09:00:00+00', '2025-01-05 09:00:00+00')
+      ON CONFLICT (email) DO NOTHING;
+    $$;
+    EXECUTE $$
+      INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
+      VALUES ('Bob', 'bob@example.com', '', 'USER', '2025-01-06 10:00:00+00', '2025-01-06 10:00:00+00')
+      ON CONFLICT (email) DO NOTHING;
+    $$;
+    EXECUTE $$
+      INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
+      VALUES ('Admin', 'admin@homestock.test', '', 'ADMIN', '2025-01-07 11:00:00+00', '2025-01-07 11:00:00+00')
+      ON CONFLICT (email) DO NOTHING;
+    $$;
+  END IF;
+END $$;
 
 -- =========================
 -- Categories
