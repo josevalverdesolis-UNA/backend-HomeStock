@@ -27,7 +27,10 @@ RUN useradd -ms /bin/bash appuser
 
 # Copiamos el artefacto construido
 COPY --from=build /workspace/build/libs/app.jar app.jar
-RUN chown -R appuser:appuser ${APP_HOME}
+
+# Copiamos el script de entrada y aseguramos permisos
+COPY entrypoint.sh ./entrypoint.sh
+RUN sed -i 's/\r$//' ./entrypoint.sh && chmod +x ./entrypoint.sh && chown -R appuser:appuser ${APP_HOME}
 USER appuser
 
 # Puerto por defecto local; Render inyecta PORT en runtime
@@ -37,18 +40,5 @@ EXPOSE 8080
 # Flags JVM seguros para contenedores
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -Djava.security.egd=file:/dev/./urandom"
 
-# Si Render provee DATABASE_URL (postgres://user:pass@host:port/db?sslmode=require),
-# lo convertimos a variables SPRING_DATASOURCE_* esperadas por la app.
-# Esto permite vincular fácilmente el servicio de Postgres en Render sin configurar manualmente las 3 vars.
-ENTRYPOINT ["/bin/sh","-c","\
-if [ -n \"$DATABASE_URL\" ] && [ -z \"$SPRING_DATASOURCE_URL\" ]; then \
-  proto_removed=\${DATABASE_URL#*://}; \
-  creds=\${proto_removed%@*}; \
-  hostpath=\${proto_removed#*@}; \
-  user=\${creds%%:*}; \
-  pass=\${creds#*:}; \
-  export SPRING_DATASOURCE_URL=jdbc:postgresql://\${hostpath}; \
-  export SPRING_DATASOURCE_USERNAME=\"\${user}\"; \
-  export SPRING_DATASOURCE_PASSWORD=\"\${pass}\"; \
-fi; \
-exec java $JAVA_OPTS -jar app.jar --server.port=\${PORT:-8080}"]
+# Usamos un script simple como entrypoint (evita problemas de quoting en plataformas de despliegue)
+ENTRYPOINT ["/opt/app/entrypoint.sh"]
