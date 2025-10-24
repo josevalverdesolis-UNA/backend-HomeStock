@@ -24,21 +24,24 @@ class SecurityConfig(
             .cors { } // usa el bean corsConfigurationSource
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
+
                 // Recursos públicos
-                it.requestMatchers(
-                    "/", "/error", "/favicon.ico",
-                    "/swagger-ui/**", "/v3/api-docs/**", "/v1/api-docs/**", "/actuator/health"
-                ).permitAll()
+                //it.requestMatchers(
+                //  "/", "/error", "/favicon.ico",
+                // "/swagger-ui/**", "/v3/api-docs/**", "/v1/api-docs/**", "/actuator/health"
+                //).permitAll()
 
                 // Auth público específico
-                it.requestMatchers(
-                    "/api/v1/auth/register",
-                    "/api/v1/auth/login",
-                    "/api/v1/auth/refresh"
-                ).permitAll()
+                //it.requestMatchers(
+                //    "/api/v1/auth/register",
+                //    "/api/v1/auth/login",
+                //    "/api/v1/auth/refresh"
+                //).permitAll()
 
                 // Todo lo demás requiere JWT
-                it.anyRequest().authenticated()
+                //it.anyRequest().authenticated()
+                it.anyRequest().permitAll()
+
             }
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter::class.java)
 
